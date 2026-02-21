@@ -1175,8 +1175,19 @@ class DeliveryController extends Controller
     // Order/Return Transactions
     public function request_email()
     {
-        $ckdcust = Auth::user()->ckdcust;
-        $nidwh = Auth::user()->nidwh;
+        $user = Auth::user();
+        $ckdcust = $user->ckdcust;
+        $nidwh = $user->nidwh;
+
+        // Resolve customer from DB with same fallback style as create()
+        $customer = null;
+        if ($user->nidcust || $user->ckdcust) {
+            $customer = Customer::where('nidcust', $user->nidcust)
+                ->orWhere('ckdcust', $user->ckdcust)
+                ->first();
+        }
+
+        $customerId = $customer->nidcust ?? null;
 
         $custwh = DB::table('ymcustwarehouse')
             ->where('ckdcust', $ckdcust)
@@ -1186,11 +1197,16 @@ class DeliveryController extends Controller
         $yswh = DB::table('ymcompwarehouse')
             ->get();
 
-        $request = DB::table('ymcust')
+        $requestCustomer = DB::table('ymcust')
             ->where('ckdcust', $ckdcust)
             ->first();
 
-        return view('transaction.order_return.request_email', compact('request', 'custwh', 'yswh'));
+        return view('transaction.order_return.request_email', [
+            'request' => $requestCustomer,
+            'custwh' => $custwh,
+            'yswh' => $yswh,
+            'customerId' => $customerId,
+        ]);
     }
 
     /**
