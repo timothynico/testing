@@ -766,6 +766,19 @@
                 toCity.value = '';
             }
 
+            async function reloadReceiverAddressesBySenderCity() {
+                const receiverCustomerId = toCustomerNetwork.value;
+
+                if (!receiverCustomerId) {
+                    toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                    return;
+                }
+
+                toAddressSelect.innerHTML = '<option value="">Loading...</option>';
+                clearToCustomerFields();
+                await loadCustomerAddresses(receiverCustomerId, 'to');
+            }
+
             async function loadCustomerAddresses(customerId, type) {
                 const selectElement = type === 'from' ? fromAddressSelect : toAddressSelect;
                 selectElement.innerHTML = '<option value="">Loading...</option>';
@@ -1152,6 +1165,8 @@
                     fromCity.value = '';
                     fromCkdwh.value = '';
                 }
+
+                reloadReceiverAddressesBySenderCity();
                 setStockItemToSend();
             });
 
