@@ -305,6 +305,7 @@
             email: '{{ Auth::user()->email }}',
             company: '{{ $request->cnmcust }}'
         };
+        const CURRENT_ROLE = @json($role ?? null);
 
         // Optional: Provide JS copies of server data (defensive)
         const SERVER_CUSTWH = @json(isset($custwh) ? $custwh : null);
@@ -416,22 +417,50 @@
             const today = new Date().toISOString().split('T')[0];
             requiredDate.setAttribute('min', today);
 
-            // ----- PREP: capture & remove customer option(s), keep one template -----
-            let custOptionTemplate = null;
-            (function captureCustomerOption() {
-                const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
-                const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
+            // ----- PREP: normalize warehouse source data from backend -----
+            const normalizeAsArray = source => Array.isArray(source) ? source : (source ? Object.values(source) : []);
+            const customerWarehouseList = normalizeAsArray(SERVER_CUSTWH);
+            const yanasuryaWarehouseList = normalizeAsArray(SERVER_YSWH);
 
-                if (fromCust) {
-                    custOptionTemplate = fromCust.cloneNode(true);
-                    fromCust.remove();
+            const fromPlaceholderTemplate = warehouseFromSelect.options[0] ? warehouseFromSelect.options[0].cloneNode(true) : null;
+            const toPlaceholderTemplate = warehouseToSelect.options[0] ? warehouseToSelect.options[0].cloneNode(true) : null;
+
+            function buildWarehouseOption(warehouse, optionType) {
+                const option = document.createElement('option');
+                const isCustomer = optionType === 'customer';
+
+                option.value = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
+                option.textContent = warehouse.cnmwh || '';
+                option.dataset.address = warehouse.calmtwh || '';
+                option.dataset.nid = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
+                option.dataset.ckd = warehouse.ckdwh || '';
+                option.dataset.city = warehouse.ckotawh || '';
+
+                if (isCustomer) {
+                    option.dataset.customer = '1';
                 }
-                if (!custOptionTemplate && toCust) {
-                    custOptionTemplate = toCust.cloneNode(true);
-                    toCust.remove();
+
+                return option;
+            }
+
+            function setWarehouseOptions(selectEl, optionType) {
+                const currentValue = selectEl.value;
+                const placeholderTemplate = selectEl === warehouseFromSelect ? fromPlaceholderTemplate : toPlaceholderTemplate;
+                const sourceList = optionType === 'customer' ? customerWarehouseList : yanasuryaWarehouseList;
+
+                selectEl.innerHTML = '';
+
+                if (placeholderTemplate) {
+                    selectEl.appendChild(placeholderTemplate.cloneNode(true));
                 }
-                // now both selects do not contain a customer option — we'll insert selectively
-            })();
+
+                sourceList.forEach(warehouse => {
+                    selectEl.appendChild(buildWarehouseOption(warehouse, optionType));
+                });
+
+                const hasCurrentValue = Array.from(selectEl.options).some(option => option.value === currentValue);
+                selectEl.value = hasCurrentValue ? currentValue : '';
+            }
 
             // Add date constraints based on request type
             function updateDateConstraints() {
@@ -449,65 +478,37 @@
                 requiredDate.value = ''; // Clear selected date when switching
             }
 
-            // Helper: insert customer option as first real option after placeholder
-            function insertCustomerInto(selectEl) {
-                if (!custOptionTemplate) return;
-                // If it already exists, don't insert again
-                if (selectEl.querySelector('option[data-customer="1"]')) return;
-                const cloned = custOptionTemplate.cloneNode(true);
-                // place after the placeholder option (index 0)
-                const afterPlaceholder = selectEl.options[1] || null;
-                selectEl.insertBefore(cloned, afterPlaceholder);
-            }
-
-            // Helper: remove any customer option from given select
-            function removeCustomerFrom(selectEl) {
-                const opt = selectEl.querySelector('option[data-customer="1"]');
-                if (opt) opt.remove();
-            }
-
             // Configure warehouses: lock/select customer warehouse depending on type
             function configureWarehouses() {
                 const isOrder = requestTypeOrder.checked;
+                const isWarehousePic = ['warehouse_pic', 'pic_warehouse'].includes(CURRENT_ROLE);
 
                 if (isOrder) {
-                    // Order: To = customer (locked), From = Yanasurya (selectable)
-                    // ensure customer option present in To, removed from From
-                    removeCustomerFrom(warehouseFromSelect);
-                    insertCustomerInto(warehouseToSelect);
+                    // Order: From = Yanasurya (yswh), To = Customer (custwh)
+                    setWarehouseOptions(warehouseFromSelect, 'yanasurya');
+                    setWarehouseOptions(warehouseToSelect, 'customer');
 
-                    // select the customer option in To if present
-                    const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
-                    if (toCust) {
-                        warehouseToSelect.value = toCust.value;
-                        toCust.selected = true;
-                    } else {
-                        // if not present, leave default (user must pick)
-                        warehouseToSelect.value = '';
+                    if (!warehouseToSelect.value && warehouseToSelect.options.length > 1) {
+                        warehouseToSelect.value = warehouseToSelect.options[1].value;
                     }
 
-                    //coba di enable
-                    warehouseToSelect.disabled = false;
+                    // For warehouse PIC, destination customer warehouse is fixed
+                    warehouseToSelect.disabled = isWarehousePic;
                     warehouseToSelect.required = false;
 
                     warehouseFromSelect.disabled = false;
                     warehouseFromSelect.required = true;
-
                 } else {
-                    // Return: From = customer (locked), To = Yanasurya (selectable)
-                    removeCustomerFrom(warehouseToSelect);
-                    insertCustomerInto(warehouseFromSelect);
+                    // Return: From = Customer (custwh), To = Yanasurya (yswh)
+                    setWarehouseOptions(warehouseFromSelect, 'customer');
+                    setWarehouseOptions(warehouseToSelect, 'yanasurya');
 
-                    const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
-                    if (fromCust) {
-                        warehouseFromSelect.value = fromCust.value;
-                        fromCust.selected = true;
-                    } else {
-                        warehouseFromSelect.value = '';
+                    if (!warehouseFromSelect.value && warehouseFromSelect.options.length > 1) {
+                        warehouseFromSelect.value = warehouseFromSelect.options[1].value;
                     }
 
-                    // coba di enable
-                    warehouseFromSelect.disabled = false;
+                    // For warehouse PIC, return source customer warehouse is fixed
+                    warehouseFromSelect.disabled = isWarehousePic;
                     warehouseFromSelect.required = false;
 
                     warehouseToSelect.disabled = false;
