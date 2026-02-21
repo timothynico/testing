@@ -292,6 +292,16 @@
     </div>
 
     <!-- Hidden data container -->
+    @php
+        $serverUserFlags = [
+            'isAdmin' => $isAdmin ?? false,
+            'isCustomerUser' => $isCustomerUser ?? false,
+            'isWarehousePic' => $isWarehousePic ?? false,
+            'isCompanyWarehouse' => $isCompanyWarehouse ?? false,
+            'allowedFromWarehouseCodes' => $allowedFromWarehouseCodes ?? [],
+        ];
+    @endphp
+
     <script>
         // Current logged-in user data - replace with actual data from backend
         const currentUser = {
@@ -303,7 +313,8 @@
         // Optional: Provide JS copies of server data (defensive)
         const SERVER_CUSTWH = @json(isset($custwh) ? $custwh : null);
         const SERVER_YSWH = @json(isset($yswh) ? $yswh : []);
-        const SERVER_CUSTOMER_ID = @json($request->nidcust ?? null);
+        const SERVER_CUSTOMER_ID = @json($customerId ?? null);
+        const SERVER_USER_FLAGS = @json($serverUserFlags);
     </script>
 @endsection
 
@@ -412,6 +423,8 @@
             requiredDate.setAttribute('min', today);
 
             const customerId = window.SERVER_CUSTOMER_ID;
+            const userFlags = window.SERVER_USER_FLAGS || {};
+            const allowedFromWarehouseCodes = Array.isArray(userFlags.allowedFromWarehouseCodes) ? userFlags.allowedFromWarehouseCodes.map(String) : [];
             let allAddresses = [];
 
             // Add date constraints based on request type
@@ -497,18 +510,28 @@
                     yanaSuryaAddresses
                 } = getAddressBuckets();
 
-                if (isOrder) {
-                    buildWarehouseOptions(warehouseFromSelect, yanaSuryaAddresses, selectedFromValue);
-                    buildWarehouseOptions(warehouseToSelect, customerAddresses, selectedToValue);
-                } else {
-                    buildWarehouseOptions(warehouseFromSelect, customerAddresses, selectedFromValue);
-                    buildWarehouseOptions(warehouseToSelect, yanaSuryaAddresses, selectedToValue);
+                const fromCandidates = isOrder ? yanaSuryaAddresses : customerAddresses;
+                const toCandidates = isOrder ? customerAddresses : yanaSuryaAddresses;
+
+                let finalFromOptions = fromCandidates;
+                if (allowedFromWarehouseCodes.length > 0) {
+                    finalFromOptions = fromCandidates.filter(addr => allowedFromWarehouseCodes.includes(String(addr.ckdwh || '')));
                 }
+
+                buildWarehouseOptions(warehouseFromSelect, finalFromOptions, selectedFromValue);
+                buildWarehouseOptions(warehouseToSelect, toCandidates, selectedToValue);
 
                 warehouseFromSelect.disabled = false;
                 warehouseToSelect.disabled = false;
                 warehouseFromSelect.required = true;
                 warehouseToSelect.required = true;
+
+                if (allowedFromWarehouseCodes.length > 0) {
+                    warehouseFromSelect.disabled = true;
+                    if (warehouseFromSelect.options.length > 1 && warehouseFromSelect.selectedIndex <= 0) {
+                        warehouseFromSelect.selectedIndex = 1;
+                    }
+                }
 
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);

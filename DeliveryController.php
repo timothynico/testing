@@ -1175,8 +1175,42 @@ class DeliveryController extends Controller
     // Order/Return Transactions
     public function request_email()
     {
-        $ckdcust = Auth::user()->ckdcust;
-        $nidwh = Auth::user()->nidwh;
+        $user = Auth::user();
+
+        $isAdmin = $user->isAdmin();
+        $isCompanyWarehouse = $user->role === 'warehouseys' && !empty($user->ckdcomp);
+        $isWarehousePic = $user->customer_role === 'warehouse_pic' && !empty($user->ckdwh);
+        $isCustomerUser = !$isAdmin && !$isCompanyWarehouse && (!empty($user->nidcust) || !empty($user->ckdcust));
+
+        $customerQuery = Customer::query();
+
+        if (!empty($user->nidcust) || !empty($user->ckdcust)) {
+            $customerQuery->where(function ($q) use ($user) {
+                if (!empty($user->nidcust)) {
+                    $q->where('nidcust', $user->nidcust);
+                }
+
+                if (!empty($user->ckdcust)) {
+                    $method = !empty($user->nidcust) ? 'orWhere' : 'where';
+                    $q->{$method}('ckdcust', $user->ckdcust);
+                }
+            });
+        }
+
+        $customer = $customerQuery->first();
+
+        $customerId = $customer?->nidcust;
+
+        $allowedFromWarehouseCodes = [];
+        if ($isWarehousePic && !empty($user->ckdwh)) {
+            $allowedFromWarehouseCodes[] = $user->ckdwh;
+        }
+        if ($isCompanyWarehouse && !empty($user->ckdwhcomp)) {
+            $allowedFromWarehouseCodes[] = $user->ckdwhcomp;
+        }
+
+        $ckdcust = $customer?->ckdcust ?? $user->ckdcust;
+        $nidwh = $user->nidwh;
 
         $custwh = DB::table('ymcustwarehouse')
             ->where('ckdcust', $ckdcust)
@@ -1187,10 +1221,20 @@ class DeliveryController extends Controller
             ->get();
 
         $request = DB::table('ymcust')
-            ->where('ckdcust', $ckdcust)
+            ->when($customer?->nidcust, fn($q) => $q->where('nidcust', $customer->nidcust), fn($q) => $q->where('ckdcust', $ckdcust))
             ->first();
 
-        return view('transaction.order_return.request_email', compact('request', 'custwh', 'yswh'));
+        return view('transaction.order_return.request_email', compact(
+            'request',
+            'custwh',
+            'yswh',
+            'customerId',
+            'isAdmin',
+            'isCustomerUser',
+            'isWarehousePic',
+            'isCompanyWarehouse',
+            'allowedFromWarehouseCodes'
+        ));
     }
 
     /**
