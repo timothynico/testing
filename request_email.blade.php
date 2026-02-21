@@ -104,20 +104,23 @@
                                 <option value="">{{ __('Select warehouse') }}...</option>
 
                                 {{-- Customer warehouse option --}}
-                                @if (isset($custwh))
-                                    <option value="{{ $custwh->nidwh }}" data-customer="1"
-                                        data-address="{{ $custwh->calmtwh }}" data-nid="{{ $custwh->nidwh }}"
-                                        data-ckd="{{ $custwh->ckdwh }}">
-                                        {{ $custwh->cnmwh }}
+                                @foreach ($custwh as $wh)
+                                    <option value="{{ $wh->nidwh }}"
+                                        data-customer="1"
+                                        data-address="{{ $wh->calmtwh }}"
+                                        data-nid="{{ $wh->nidwh }}"
+                                        data-ckd="{{ $wh->ckdwh }}"
+                                        data-city="{{ $wh->ckotawh }}">
+                                        {{ $wh->cnmwh }}
                                     </option>
-                                @endif
+                                @endforeach
 
                                 {{-- Yanasurya warehouses --}}
                                 @if (isset($yswh) && is_iterable($yswh))
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}">
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}">
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
@@ -137,20 +140,23 @@
                                 <option value="">{{ __('Select warehouse') }}...</option>
 
                                 {{-- Customer warehouse option --}}
-                                @if (isset($custwh))
-                                    <option value="{{ $custwh->nidwh }}" data-customer="1"
-                                        data-address="{{ $custwh->calmtwh }}" data-nid="{{ $custwh->nidwh }}"
-                                        data-ckd="{{ $custwh->ckdwh }}">
-                                        {{ $custwh->cnmwh }}
+                                @foreach ($custwh as $wh)
+                                    <option value="{{ $wh->nidwh }}"
+                                        data-customer="1"
+                                        data-address="{{ $wh->calmtwh }}"
+                                        data-nid="{{ $wh->nidwh }}"
+                                        data-ckd="{{ $wh->ckdwh }}"
+                                        data-city="{{ $wh->ckotawh }}">
+                                        {{ $wh->cnmwh }}
                                     </option>
-                                @endif
+                                @endforeach
 
                                 {{-- Yanasurya warehouses --}}
                                 @if (isset($yswh) && is_iterable($yswh))
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}">
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}">
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
@@ -292,16 +298,6 @@
     </div>
 
     <!-- Hidden data container -->
-    @php
-        $serverUserFlags = [
-            'isAdmin' => $isAdmin ?? false,
-            'isCustomerUser' => $isCustomerUser ?? false,
-            'isWarehousePic' => $isWarehousePic ?? false,
-            'isCompanyWarehouse' => $isCompanyWarehouse ?? false,
-            'allowedFromWarehouseCodes' => $allowedFromWarehouseCodes ?? [],
-        ];
-    @endphp
-
     <script>
         // Current logged-in user data - replace with actual data from backend
         const currentUser = {
@@ -313,14 +309,6 @@
         // Optional: Provide JS copies of server data (defensive)
         const SERVER_CUSTWH = @json(isset($custwh) ? $custwh : null);
         const SERVER_YSWH = @json(isset($yswh) ? $yswh : []);
-        const SERVER_CUSTOMER_ID = @json($customerId ?? null);
-        const SERVER_USER_FLAGS = @json([
-            'isAdmin' => $isAdmin ?? false,
-            'isCustomerUser' => $isCustomerUser ?? false,
-            'isWarehousePic' => $isWarehousePic ?? false,
-            'isCompanyWarehouse' => $isCompanyWarehouse ?? false,
-            'allowedFromWarehouseCodes' => $allowedFromWarehouseCodes ?? [],
-        ]);
     </script>
 @endsection
 
@@ -428,10 +416,22 @@
             const today = new Date().toISOString().split('T')[0];
             requiredDate.setAttribute('min', today);
 
-            const customerId = window.SERVER_CUSTOMER_ID;
-            const userFlags = window.SERVER_USER_FLAGS || {};
-            const allowedFromWarehouseCodes = Array.isArray(userFlags.allowedFromWarehouseCodes) ? userFlags.allowedFromWarehouseCodes.map(String) : [];
-            let allAddresses = [];
+            // ----- PREP: capture & remove customer option(s), keep one template -----
+            let custOptionTemplate = null;
+            (function captureCustomerOption() {
+                const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
+                const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
+
+                if (fromCust) {
+                    custOptionTemplate = fromCust.cloneNode(true);
+                    fromCust.remove();
+                }
+                if (!custOptionTemplate && toCust) {
+                    custOptionTemplate = toCust.cloneNode(true);
+                    toCust.remove();
+                }
+                // now both selects do not contain a customer option — we'll insert selectively
+            })();
 
             // Add date constraints based on request type
             function updateDateConstraints() {
@@ -449,106 +449,74 @@
                 requiredDate.value = ''; // Clear selected date when switching
             }
 
-            async function loadCustomerAddressesByCity(city = '') {
-                if (!customerId) {
-                    allAddresses = [];
-                    return;
-                }
-
-                const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(city)}`);
-                if (!response.ok) {
-                    throw new Error('Failed to load customer addresses');
-                }
-
-                allAddresses = await response.json();
+            // Helper: insert customer option as first real option after placeholder
+            function insertCustomerInto(selectEl) {
+                if (!custOptionTemplate) return;
+                // If it already exists, don't insert again
+                if (selectEl.querySelector('option[data-customer="1"]')) return;
+                const cloned = custOptionTemplate.cloneNode(true);
+                // place after the placeholder option (index 0)
+                const afterPlaceholder = selectEl.options[1] || null;
+                selectEl.insertBefore(cloned, afterPlaceholder);
             }
 
-            function getAddressBuckets() {
-                const customerAddresses = [];
-                const yanaSuryaAddresses = [];
-
-                allAddresses.forEach(addr => {
-                    const type = String(addr.type || '').toLowerCase();
-                    if (type === 'customer') {
-                        customerAddresses.push(addr);
-                    } else {
-                        yanaSuryaAddresses.push(addr);
-                    }
-                });
-
-                return {
-                    customerAddresses,
-                    yanaSuryaAddresses,
-                };
+            // Helper: remove any customer option from given select
+            function removeCustomerFrom(selectEl) {
+                const opt = selectEl.querySelector('option[data-customer="1"]');
+                if (opt) opt.remove();
             }
 
-            function buildWarehouseOptions(selectEl, addresses, selectedValue = '') {
-                selectEl.innerHTML = '<option value="">{{ __('Select warehouse') }}...</option>';
-
-                addresses.forEach(addr => {
-                    const option = document.createElement('option');
-                    const optionValue = String(addr.nidwh || addr.nidcompwh || addr.ckdwh || '');
-
-                    option.value = optionValue;
-                    option.dataset.address = addr.address || '';
-                    option.dataset.city = addr.city || '';
-                    option.dataset.nid = String(addr.nidwh || addr.nidcompwh || '');
-                    option.dataset.ckd = addr.ckdwh || '';
-                    option.dataset.type = addr.type || '';
-
-                    const distance = addr.distance ? ` (${addr.distance})` : '';
-                    option.textContent = `${addr.label}${distance}`;
-                    selectEl.appendChild(option);
-                });
-
-                if (selectedValue && selectEl.querySelector(`option[value="${selectedValue}"]`)) {
-                    selectEl.value = selectedValue;
-                } else if (addresses.length === 1) {
-                    selectEl.selectedIndex = 1;
-                }
-            }
-
-            // Configure warehouses based on mode and API data
-            function configureWarehouses(selectedFromValue = '', selectedToValue = '') {
+            // Configure warehouses: lock/select customer warehouse depending on type
+            function configureWarehouses() {
                 const isOrder = requestTypeOrder.checked;
-                const {
-                    customerAddresses,
-                    yanaSuryaAddresses
-                } = getAddressBuckets();
 
-                const fromCandidates = isOrder ? yanaSuryaAddresses : customerAddresses;
-                const toCandidates = isOrder ? customerAddresses : yanaSuryaAddresses;
+                if (isOrder) {
+                    // Order: To = customer (locked), From = Yanasurya (selectable)
+                    // ensure customer option present in To, removed from From
+                    removeCustomerFrom(warehouseFromSelect);
+                    insertCustomerInto(warehouseToSelect);
 
-                let finalFromOptions = fromCandidates;
-                if (allowedFromWarehouseCodes.length > 0) {
-                    finalFromOptions = fromCandidates.filter(addr => allowedFromWarehouseCodes.includes(String(addr.ckdwh || '')));
-                }
-
-                buildWarehouseOptions(warehouseFromSelect, finalFromOptions, selectedFromValue);
-                buildWarehouseOptions(warehouseToSelect, toCandidates, selectedToValue);
-
-                warehouseFromSelect.disabled = false;
-                warehouseToSelect.disabled = false;
-                warehouseFromSelect.required = true;
-                warehouseToSelect.required = true;
-
-                if (allowedFromWarehouseCodes.length > 0) {
-                    warehouseFromSelect.disabled = true;
-                    if (warehouseFromSelect.options.length > 1 && warehouseFromSelect.selectedIndex <= 0) {
-                        warehouseFromSelect.selectedIndex = 1;
+                    // select the customer option in To if present
+                    const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
+                    if (toCust) {
+                        warehouseToSelect.value = toCust.value;
+                        toCust.selected = true;
+                    } else {
+                        // if not present, leave default (user must pick)
+                        warehouseToSelect.value = '';
                     }
+
+                    //coba di enable
+                    warehouseToSelect.disabled = false;
+                    warehouseToSelect.required = false;
+
+                    warehouseFromSelect.disabled = false;
+                    warehouseFromSelect.required = true;
+
+                } else {
+                    // Return: From = customer (locked), To = Yanasurya (selectable)
+                    removeCustomerFrom(warehouseToSelect);
+                    insertCustomerInto(warehouseFromSelect);
+
+                    const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
+                    if (fromCust) {
+                        warehouseFromSelect.value = fromCust.value;
+                        fromCust.selected = true;
+                    } else {
+                        warehouseFromSelect.value = '';
+                    }
+
+                    // coba di enable
+                    warehouseFromSelect.disabled = false;
+                    warehouseFromSelect.required = false;
+
+                    warehouseToSelect.disabled = false;
+                    warehouseToSelect.required = true;
                 }
 
+                // Update address displays immediately
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
-            }
-
-            async function refreshWarehousesByFromCity(city = '', preserveSelection = true) {
-                const selectedFromValue = preserveSelection ? warehouseFromSelect.value : '';
-                const selectedToValue = preserveSelection ? warehouseToSelect.value : '';
-
-                await loadCustomerAddressesByCity(city);
-                configureWarehouses(selectedFromValue, selectedToValue);
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
@@ -611,13 +579,9 @@
                 }
 
                 updateDateConstraints();
-                refreshWarehousesByFromCity().then(() => {
-                    generateEmail();
-                }).catch(err => {
-                    console.error('Failed to refresh warehouses:', err);
-                    configureWarehouses();
-                    generateEmail();
-                });
+                configureWarehouses();
+                // generateEmail is async; call it (no await needed here)
+                generateEmail();
             }
 
             requestTypeOrder.addEventListener('change', handleRequestTypeChange);
@@ -685,17 +649,8 @@
             }
 
             // Warehouse change handlers - display addresses (both From & To)
-            warehouseFromSelect.addEventListener('change', async function() {
+            warehouseFromSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
-                const selectedOption = this.options[this.selectedIndex];
-                const fromCity = selectedOption ? (selectedOption.dataset.city || '') : '';
-
-                try {
-                    await refreshWarehousesByFromCity(fromCity, true);
-                } catch (error) {
-                    console.error('Error reloading destination warehouses:', error);
-                }
-
                 generateEmail();
             });
 
@@ -945,12 +900,8 @@
                     palletImage.classList.add('d-none');
                     palletImagePlaceholder.classList.remove('d-none');
                     palletTypeName.textContent = '';
-                    refreshWarehousesByFromCity('', false).then(() => {
-                        generateEmail();
-                    }).catch(() => {
-                        configureWarehouses();
-                        generateEmail();
-                    });
+                    configureWarehouses(); // reapply lock/select customer option
+                    generateEmail();
                 }
             });
 
@@ -1075,12 +1026,9 @@ function openMailClient() {
 
 
             // Initial check
-            refreshWarehousesByFromCity().then(() => {
-                handleRequestTypeChange();
-            }).catch(error => {
-                console.error('Error initializing warehouses:', error);
-                handleRequestTypeChange();
-            });
+            handleRequestTypeChange();
+            // call generateEmail once to populate initial body (it is async)
+            generateEmail();
         });
     </script>
 
