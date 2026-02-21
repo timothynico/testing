@@ -303,6 +303,7 @@
         // Optional: Provide JS copies of server data (defensive)
         const SERVER_CUSTWH = @json(isset($custwh) ? $custwh : null);
         const SERVER_YSWH = @json(isset($yswh) ? $yswh : []);
+        const SERVER_CUSTOMER_ID = @json($request->nidcust ?? null);
     </script>
 @endsection
 
@@ -410,22 +411,8 @@
             const today = new Date().toISOString().split('T')[0];
             requiredDate.setAttribute('min', today);
 
-            // ----- PREP: capture & remove customer option(s), keep one template -----
-            let custOptionTemplate = null;
-            (function captureCustomerOption() {
-                const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
-                const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
-
-                if (fromCust) {
-                    custOptionTemplate = fromCust.cloneNode(true);
-                    fromCust.remove();
-                }
-                if (!custOptionTemplate && toCust) {
-                    custOptionTemplate = toCust.cloneNode(true);
-                    toCust.remove();
-                }
-                // now both selects do not contain a customer option — we'll insert selectively
-            })();
+            const customerId = window.SERVER_CUSTOMER_ID;
+            let allAddresses = [];
 
             // Add date constraints based on request type
             function updateDateConstraints() {
@@ -443,74 +430,96 @@
                 requiredDate.value = ''; // Clear selected date when switching
             }
 
-            // Helper: insert customer option as first real option after placeholder
-            function insertCustomerInto(selectEl) {
-                if (!custOptionTemplate) return;
-                // If it already exists, don't insert again
-                if (selectEl.querySelector('option[data-customer="1"]')) return;
-                const cloned = custOptionTemplate.cloneNode(true);
-                // place after the placeholder option (index 0)
-                const afterPlaceholder = selectEl.options[1] || null;
-                selectEl.insertBefore(cloned, afterPlaceholder);
-            }
-
-            // Helper: remove any customer option from given select
-            function removeCustomerFrom(selectEl) {
-                const opt = selectEl.querySelector('option[data-customer="1"]');
-                if (opt) opt.remove();
-            }
-
-            // Configure warehouses: lock/select customer warehouse depending on type
-            function configureWarehouses() {
-                const isOrder = requestTypeOrder.checked;
-
-                if (isOrder) {
-                    // Order: To = customer (locked), From = Yanasurya (selectable)
-                    // ensure customer option present in To, removed from From
-                    removeCustomerFrom(warehouseFromSelect);
-                    insertCustomerInto(warehouseToSelect);
-
-                    // select the customer option in To if present
-                    const toCust = warehouseToSelect.querySelector('option[data-customer="1"]');
-                    if (toCust) {
-                        warehouseToSelect.value = toCust.value;
-                        toCust.selected = true;
-                    } else {
-                        // if not present, leave default (user must pick)
-                        warehouseToSelect.value = '';
-                    }
-
-                    //coba di enable
-                    warehouseToSelect.disabled = false;
-                    warehouseToSelect.required = false;
-
-                    warehouseFromSelect.disabled = false;
-                    warehouseFromSelect.required = true;
-
-                } else {
-                    // Return: From = customer (locked), To = Yanasurya (selectable)
-                    removeCustomerFrom(warehouseToSelect);
-                    insertCustomerInto(warehouseFromSelect);
-
-                    const fromCust = warehouseFromSelect.querySelector('option[data-customer="1"]');
-                    if (fromCust) {
-                        warehouseFromSelect.value = fromCust.value;
-                        fromCust.selected = true;
-                    } else {
-                        warehouseFromSelect.value = '';
-                    }
-
-                    // coba di enable
-                    warehouseFromSelect.disabled = false;
-                    warehouseFromSelect.required = false;
-
-                    warehouseToSelect.disabled = false;
-                    warehouseToSelect.required = true;
+            async function loadCustomerAddressesByCity(city = '') {
+                if (!customerId) {
+                    allAddresses = [];
+                    return;
                 }
 
-                // Update address displays immediately
+                const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(city)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load customer addresses');
+                }
+
+                allAddresses = await response.json();
+            }
+
+            function getAddressBuckets() {
+                const customerAddresses = [];
+                const yanaSuryaAddresses = [];
+
+                allAddresses.forEach(addr => {
+                    const type = String(addr.type || '').toLowerCase();
+                    if (type === 'customer') {
+                        customerAddresses.push(addr);
+                    } else {
+                        yanaSuryaAddresses.push(addr);
+                    }
+                });
+
+                return {
+                    customerAddresses,
+                    yanaSuryaAddresses,
+                };
+            }
+
+            function buildWarehouseOptions(selectEl, addresses, selectedValue = '') {
+                selectEl.innerHTML = '<option value="">{{ __('Select warehouse') }}...</option>';
+
+                addresses.forEach(addr => {
+                    const option = document.createElement('option');
+                    const optionValue = String(addr.nidwh || addr.nidcompwh || addr.ckdwh || '');
+
+                    option.value = optionValue;
+                    option.dataset.address = addr.address || '';
+                    option.dataset.city = addr.city || '';
+                    option.dataset.nid = String(addr.nidwh || addr.nidcompwh || '');
+                    option.dataset.ckd = addr.ckdwh || '';
+                    option.dataset.type = addr.type || '';
+
+                    const distance = addr.distance ? ` (${addr.distance})` : '';
+                    option.textContent = `${addr.label}${distance}`;
+                    selectEl.appendChild(option);
+                });
+
+                if (selectedValue && selectEl.querySelector(`option[value="${selectedValue}"]`)) {
+                    selectEl.value = selectedValue;
+                } else if (addresses.length === 1) {
+                    selectEl.selectedIndex = 1;
+                }
+            }
+
+            // Configure warehouses based on mode and API data
+            function configureWarehouses(selectedFromValue = '', selectedToValue = '') {
+                const isOrder = requestTypeOrder.checked;
+                const {
+                    customerAddresses,
+                    yanaSuryaAddresses
+                } = getAddressBuckets();
+
+                if (isOrder) {
+                    buildWarehouseOptions(warehouseFromSelect, yanaSuryaAddresses, selectedFromValue);
+                    buildWarehouseOptions(warehouseToSelect, customerAddresses, selectedToValue);
+                } else {
+                    buildWarehouseOptions(warehouseFromSelect, customerAddresses, selectedFromValue);
+                    buildWarehouseOptions(warehouseToSelect, yanaSuryaAddresses, selectedToValue);
+                }
+
+                warehouseFromSelect.disabled = false;
+                warehouseToSelect.disabled = false;
+                warehouseFromSelect.required = true;
+                warehouseToSelect.required = true;
+
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
+            }
+
+            async function refreshWarehousesByFromCity(city = '', preserveSelection = true) {
+                const selectedFromValue = preserveSelection ? warehouseFromSelect.value : '';
+                const selectedToValue = preserveSelection ? warehouseToSelect.value : '';
+
+                await loadCustomerAddressesByCity(city);
+                configureWarehouses(selectedFromValue, selectedToValue);
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
@@ -573,9 +582,13 @@
                 }
 
                 updateDateConstraints();
-                configureWarehouses();
-                // generateEmail is async; call it (no await needed here)
-                generateEmail();
+                refreshWarehousesByFromCity().then(() => {
+                    generateEmail();
+                }).catch(err => {
+                    console.error('Failed to refresh warehouses:', err);
+                    configureWarehouses();
+                    generateEmail();
+                });
             }
 
             requestTypeOrder.addEventListener('change', handleRequestTypeChange);
@@ -643,8 +656,17 @@
             }
 
             // Warehouse change handlers - display addresses (both From & To)
-            warehouseFromSelect.addEventListener('change', function() {
+            warehouseFromSelect.addEventListener('change', async function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
+                const selectedOption = this.options[this.selectedIndex];
+                const fromCity = selectedOption ? (selectedOption.dataset.city || '') : '';
+
+                try {
+                    await refreshWarehousesByFromCity(fromCity, true);
+                } catch (error) {
+                    console.error('Error reloading destination warehouses:', error);
+                }
+
                 generateEmail();
             });
 
@@ -894,8 +916,12 @@
                     palletImage.classList.add('d-none');
                     palletImagePlaceholder.classList.remove('d-none');
                     palletTypeName.textContent = '';
-                    configureWarehouses(); // reapply lock/select customer option
-                    generateEmail();
+                    refreshWarehousesByFromCity('', false).then(() => {
+                        generateEmail();
+                    }).catch(() => {
+                        configureWarehouses();
+                        generateEmail();
+                    });
                 }
             });
 
@@ -1020,9 +1046,12 @@ function openMailClient() {
 
 
             // Initial check
-            handleRequestTypeChange();
-            // call generateEmail once to populate initial body (it is async)
-            generateEmail();
+            refreshWarehousesByFromCity().then(() => {
+                handleRequestTypeChange();
+            }).catch(error => {
+                console.error('Error initializing warehouses:', error);
+                handleRequestTypeChange();
+            });
         });
     </script>
 
