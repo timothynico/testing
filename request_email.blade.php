@@ -292,6 +292,16 @@
     </div>
 
     <!-- Hidden data container -->
+    @php
+        $serverUserFlags = [
+            'isAdmin' => $isAdmin ?? false,
+            'isCustomerUser' => $isCustomerUser ?? false,
+            'isWarehousePic' => $isWarehousePic ?? false,
+            'isCompanyWarehouse' => $isCompanyWarehouse ?? false,
+            'allowedFromWarehouseCodes' => $allowedFromWarehouseCodes ?? [],
+        ];
+    @endphp
+
     <script>
         // Current logged-in user data - replace with actual data from backend
         const currentUser = {
