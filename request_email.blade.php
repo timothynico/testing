@@ -314,7 +314,13 @@
         const SERVER_CUSTWH = @json(isset($custwh) ? $custwh : null);
         const SERVER_YSWH = @json(isset($yswh) ? $yswh : []);
         const SERVER_CUSTOMER_ID = @json($customerId ?? null);
-        const SERVER_USER_FLAGS = @json($serverUserFlags);
+        const SERVER_USER_FLAGS = @json([
+            'isAdmin' => $isAdmin ?? false,
+            'isCustomerUser' => $isCustomerUser ?? false,
+            'isWarehousePic' => $isWarehousePic ?? false,
+            'isCompanyWarehouse' => $isCompanyWarehouse ?? false,
+            'allowedFromWarehouseCodes' => $allowedFromWarehouseCodes ?? [],
+        ]);
     </script>
 @endsection
 
