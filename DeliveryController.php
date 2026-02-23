@@ -1175,66 +1175,37 @@ class DeliveryController extends Controller
     // Order/Return Transactions
     public function request_email()
     {
-        $user = Auth::user();
+        $ckdcust = Auth::user()->ckdcust;
+        $role = Auth::user()->customer_role;
 
-        $isAdmin = $user->isAdmin();
-        $isCompanyWarehouse = $user->role === 'warehouseys' && !empty($user->ckdcomp);
-        $isWarehousePic = $user->customer_role === 'warehouse_pic' && !empty($user->ckdwh);
-        $isCustomerUser = !$isAdmin && !$isCompanyWarehouse && (!empty($user->nidcust) || !empty($user->ckdcust));
-
-        $customerQuery = Customer::query();
-
-        if (!empty($user->nidcust) || !empty($user->ckdcust)) {
-            $customerQuery->where(function ($q) use ($user) {
-                if (!empty($user->nidcust)) {
-                    $q->where('nidcust', $user->nidcust);
-                }
-
-                if (!empty($user->ckdcust)) {
-                    $method = !empty($user->nidcust) ? 'orWhere' : 'where';
-                    $q->{$method}('ckdcust', $user->ckdcust);
-                }
-            });
+        // ambil warehouse customer, kalau pic munculkan warehouse pic tersebut saja
+        if ($role == 'warehouse_pic'){
+            $ckdwh = Auth::user()->ckdwh;
+            $custwh = DB::table('ymcustwarehouse as custwh')
+                ->join('mkota as m', 'm.ckota', '=', 'custwh.ckotawh')
+                ->where('custwh.ckdcust', $ckdcust)
+                ->where('custwh.ckdwh', $ckdwh)
+                ->get();
+        }else{
+            $custwh = DB::table('ymcustwarehouse as custwh')
+                ->join('mkota as m', 'm.ckota', '=', 'custwh.ckotawh')
+                ->where('custwh.ckdcust', $ckdcust)
+                ->get();
         }
-
-        $customer = $customerQuery->first();
-
-        $customerId = $customer?->nidcust;
-
-        $allowedFromWarehouseCodes = [];
-        if ($isWarehousePic && !empty($user->ckdwh)) {
-            $allowedFromWarehouseCodes[] = $user->ckdwh;
-        }
-        if ($isCompanyWarehouse && !empty($user->ckdwhcomp)) {
-            $allowedFromWarehouseCodes[] = $user->ckdwhcomp;
-        }
-
-        $ckdcust = $customer?->ckdcust ?? $user->ckdcust;
-        $nidwh = $user->nidwh;
-
-        $custwh = DB::table('ymcustwarehouse')
-            ->where('ckdcust', $ckdcust)
-            ->where('nidwh', $nidwh)
-            ->first();
 
         $yswh = DB::table('ymcompwarehouse')
+            ->join('mkota as m', 'm.ckota', '=', 'ymcompwarehouse.ckotawh')
             ->get();
+        
+        dump($yswh);
+        
 
         $request = DB::table('ymcust')
-            ->when($customer?->nidcust, fn($q) => $q->where('nidcust', $customer->nidcust), fn($q) => $q->where('ckdcust', $ckdcust))
+            ->where('ckdcust', $ckdcust)
             ->first();
+        
 
-        return view('transaction.order_return.request_email', compact(
-            'request',
-            'custwh',
-            'yswh',
-            'customerId',
-            'isAdmin',
-            'isCustomerUser',
-            'isWarehousePic',
-            'isCompanyWarehouse',
-            'allowedFromWarehouseCodes'
-        ));
+        return view('transaction.order_return.request_email', compact('request', 'custwh', 'yswh', 'role'));
     }
 
     /**
@@ -2178,6 +2149,10 @@ class DeliveryController extends Controller
             return null;
         }
 
+        // return $requestLocation->nlat .' '. $requestLocation->nlong .' '. $customerLocation->nlat .' '. $customerLocation->nlong ;
+
+        
+
         // hitung distance berdasarkan haversine
         $lat1 = deg2rad($requestLocation->nlat);
         $lon1 = deg2rad($requestLocation->nlong);
@@ -2231,7 +2206,7 @@ class DeliveryController extends Controller
                 'address' => $mainAddress,
                 'city' => $customer->ckota,
                 'ckdwh' => '',
-                'distance' => $this->getDistance($fromCity,$customer->ckota),
+                'distance' => $this->getDistance($fromCity, $customer->ckota),
             ];
         }
 
