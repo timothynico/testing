@@ -779,9 +779,9 @@
                     const baseLabel = option.dataset.baseLabel || option.textContent || '';
                     const distanceLabel = option.dataset.distanceLabel || '';
                     if (!distanceLabel) {
-                        return `${baseLabel}`;
+                        return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span></span>`;
                     }
-                    return `${baseLabel} <span style="color:#198754;">${distanceLabel}</span>`;
+                    return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span><span style="color:red; margin-left:12px; white-space:nowrap;">${distanceLabel}</span></span>`
                 };
 
                 const sync = () => {
@@ -867,7 +867,7 @@
                         option.dataset.type = addr.type;
                         option.dataset.baseLabel = addr.label;
                         option.dataset.distanceLabel = addr.distance;
-                        option.textContent = `${addr.label} ${addr.distance}`;
+                        option.innerHTML = `${addr.label} <span style="color:#198754;">${addr.distance}</span>`;
                         selectElement.appendChild(option);
                     });
 
