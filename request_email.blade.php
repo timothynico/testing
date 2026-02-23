@@ -526,12 +526,58 @@
                 // Update address displays immediately
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
+                updateWarehouseToDistanceLabels();
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
                 const opt = selectEl.options[selectEl.selectedIndex];
                 const address = opt ? (opt.dataset.address || opt.text) : '';
                 addressDisplayEl.textContent = address ? `📍 ${address}` : '';
+            }
+
+            function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+                const toRadians = degree => (degree * Math.PI) / 180;
+                const earthRadiusKm = 6371;
+
+                const deltaLat = toRadians(lat2 - lat1);
+                const deltaLon = toRadians(lon2 - lon1);
+
+                const a =
+                    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                    Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                return earthRadiusKm * c;
+            }
+
+            function updateWarehouseToDistanceLabels() {
+                const fromOption = warehouseFromSelect.options[warehouseFromSelect.selectedIndex];
+                const fromLat = Number(fromOption?.dataset.nlat);
+                const fromLon = Number(fromOption?.dataset.nlong ?? fromOption?.dataset.long);
+
+                Array.from(warehouseToSelect.options).forEach((toOption, index) => {
+                    if (index === 0) return;
+
+                    const baseName = toOption.dataset.baseName || toOption.textContent.split(' (')[0].trim();
+                    toOption.dataset.baseName = baseName;
+
+                    const toLat = Number(toOption.dataset.nlat);
+                    const toLon = Number(toOption.dataset.nlong ?? toOption.dataset.long);
+
+                    if (!Number.isFinite(fromLat) || !Number.isFinite(fromLon) || !Number.isFinite(toLat) || !Number.isFinite(toLon)) {
+                        toOption.textContent = baseName;
+                        toOption.style.color = '';
+                        return;
+                    }
+
+                    const distanceKm = calculateDistanceKm(fromLat, fromLon, toLat, toLon);
+                    const roundedDistance = Math.round(distanceKm * 10) / 10;
+                    const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
+
+                    toOption.textContent = `${baseName} (${distanceLabel})`;
+                    toOption.style.color = '#198754';
+                });
             }
 
             // Request type change handler
@@ -660,6 +706,7 @@
             // Warehouse change handlers - display addresses (both From & To)
             warehouseFromSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
+                updateWarehouseToDistanceLabels();
                 generateEmail();
             });
 
