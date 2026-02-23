@@ -431,6 +431,67 @@
             const fromPlaceholderTemplate = warehouseFromSelect.options[0] ? warehouseFromSelect.options[0].cloneNode(true) : null;
             const toPlaceholderTemplate = warehouseToSelect.options[0] ? warehouseToSelect.options[0].cloneNode(true) : null;
 
+            function initStyledDistanceDropdown(selectEl) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'dropdown w-100';
+
+                const trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'form-select form-select-sm text-start d-flex justify-content-between align-items-center';
+                trigger.setAttribute('data-bs-toggle', 'dropdown');
+                trigger.setAttribute('aria-expanded', 'false');
+
+                const menu = document.createElement('ul');
+                menu.className = 'dropdown-menu w-100';
+                menu.style.maxHeight = '260px';
+                menu.style.overflowY = 'auto';
+
+                wrapper.appendChild(trigger);
+                wrapper.appendChild(menu);
+                selectEl.insertAdjacentElement('afterend', wrapper);
+                selectEl.classList.add('d-none');
+
+                const renderLabel = option => {
+                    const baseName = option.dataset.baseName || option.textContent || '';
+                    const distanceLabel = option.dataset.distanceLabel || '';
+                    if (!distanceLabel) {
+                        return baseName;
+                    }
+                    return `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
+                };
+
+                const sync = () => {
+                    const selectedOption = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
+                    trigger.innerHTML = `<span>${selectedOption ? renderLabel(selectedOption) : ''}</span>`;
+                    trigger.disabled = selectEl.disabled;
+
+                    menu.innerHTML = '';
+                    Array.from(selectEl.options).forEach((option, index) => {
+                        const li = document.createElement('li');
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'dropdown-item';
+                        btn.innerHTML = renderLabel(option);
+                        btn.disabled = !!option.disabled;
+                        btn.addEventListener('click', () => {
+                            selectEl.selectedIndex = index;
+                            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+                        li.appendChild(btn);
+                        menu.appendChild(li);
+                    });
+                };
+
+                const observer = new MutationObserver(sync);
+                observer.observe(selectEl, { childList: true, subtree: true, characterData: true, attributes: true });
+                selectEl.addEventListener('change', sync);
+                sync();
+
+                return { sync };
+            }
+
+            const warehouseToStyledDropdown = initStyledDistanceDropdown(warehouseToSelect);
+
             function buildWarehouseOption(warehouse, optionType) {
                 const option = document.createElement('option');
                 const isCustomer = optionType === 'customer';
@@ -567,6 +628,7 @@
                     const toLon = Number(toOption.dataset.nlong ?? toOption.dataset.long);
 
                     if (!Number.isFinite(fromLat) || !Number.isFinite(fromLon) || !Number.isFinite(toLat) || !Number.isFinite(toLon)) {
+                        toOption.dataset.distanceLabel = '';
                         toOption.textContent = baseName;
                         return;
                     }
