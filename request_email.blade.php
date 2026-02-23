@@ -100,7 +100,7 @@
                                 <span id="warehouseFromLabel">{{ __('Delivery From Warehouse') }}</span> <span
                                     class="text-danger">*</span>
                             </label>
-                            <select class="form-select form-select-sm warehouse-native-select" id="warehouseFromSelect" required>
+                            <select class="form-select form-select-sm" id="warehouseFromSelect" required>
                                 <option value="">{{ __('Select warehouse') }}...</option>
 
                                 {{-- Customer warehouse option --}}
@@ -130,12 +130,6 @@
                                 @endif
 
                             </select>
-                            <div class="dropdown warehouse-dropdown mt-1" id="warehouseFromCustomDropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
-                                    data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                                </button>
-                                <ul class="dropdown-menu w-100"></ul>
-                            </div>
                             <small class="text-muted mt-1 d-block" id="warehouseFromAddressDisplay"></small>
                         </div>
 
@@ -145,7 +139,7 @@
                                 <span id="warehouseToLabel">{{ __('Delivery To Warehouse') }}</span> <span
                                     class="text-danger">*</span>
                             </label>
-                            <select class="form-select form-select-sm warehouse-native-select" id="warehouseToSelect" required>
+                            <select class="form-select form-select-sm" id="warehouseToSelect" required>
                                 <option value="">{{ __('Select warehouse') }}...</option>
 
                                 {{-- Customer warehouse option --}}
@@ -174,12 +168,6 @@
                                     @endforeach
                                 @endif
                             </select>
-                            <div class="dropdown warehouse-dropdown mt-1" id="warehouseToCustomDropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
-                                    data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                                </button>
-                                <ul class="dropdown-menu w-100"></ul>
-                            </div>
                             <small class="text-muted mt-1 d-block" id="warehouseToAddressDisplay"></small>
                         </div>
 
@@ -385,44 +373,6 @@
             background-color: #198754;
             border-color: #198754;
         }
-
-        .warehouse-native-select {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-            width: 1px;
-            height: 1px;
-        }
-
-        .warehouse-dropdown .dropdown-toggle {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: .75rem;
-        }
-
-        .warehouse-dropdown .dropdown-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .75rem;
-        }
-
-        .warehouse-dropdown .warehouse-name {
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            text-align: left;
-        }
-
-        .warehouse-dropdown .warehouse-distance {
-            color: #198754;
-            font-weight: 600;
-            margin-left: .5rem;
-            white-space: nowrap;
-        }
     </style>
 @endpush
 
@@ -449,9 +399,6 @@
             const warehouseFromAddressDisplay = document.getElementById('warehouseFromAddressDisplay');
             const warehouseToSelect = document.getElementById('warehouseToSelect');
             const warehouseToAddressDisplay = document.getElementById('warehouseToAddressDisplay');
-
-            const warehouseFromCustomDropdown = document.getElementById('warehouseFromCustomDropdown');
-            const warehouseToCustomDropdown = document.getElementById('warehouseToCustomDropdown');
 
             const additionalNotes = document.getElementById('additionalNotes');
             const palletCondition = document.getElementById('palletCondition');
@@ -580,8 +527,7 @@
                 // Update address displays immediately
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
-                updateWarehouseDistanceLabels();
-                renderWarehouseDropdowns();
+                updateWarehouseToDistanceLabels();
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
@@ -606,83 +552,31 @@
                 return (earthRadiusKm * c) * 1.1;
             }
 
-            function getDistanceLabel(referenceOption, targetOption) {
-                const referenceLat = Number(referenceOption?.dataset.nlat);
-                const referenceLon = Number(referenceOption?.dataset.nlong ?? referenceOption?.dataset.long);
-                const targetLat = Number(targetOption?.dataset.nlat);
-                const targetLon = Number(targetOption?.dataset.nlong ?? targetOption?.dataset.long);
+            function updateWarehouseToDistanceLabels() {
+                const fromOption = warehouseFromSelect.options[warehouseFromSelect.selectedIndex];
+                const fromLat = Number(fromOption?.dataset.nlat);
+                const fromLon = Number(fromOption?.dataset.nlong ?? fromOption?.dataset.long);
 
-                if (!Number.isFinite(referenceLat) || !Number.isFinite(referenceLon) || !Number.isFinite(targetLat) || !Number.isFinite(targetLon)) {
-                    return '';
-                }
-
-                const distanceKm = calculateDistanceKm(referenceLat, referenceLon, targetLat, targetLon);
-                const roundedDistance = Math.round(distanceKm * 10) / 10;
-                return roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
-            }
-
-            function updateWarehouseDistanceLabels() {
-                const isOrder = requestTypeOrder.checked;
-                const referenceSelect = isOrder ? warehouseToSelect : warehouseFromSelect;
-                const targetSelect = isOrder ? warehouseFromSelect : warehouseToSelect;
-                const referenceOption = referenceSelect.options[referenceSelect.selectedIndex];
-
-                Array.from(targetSelect.options).forEach((option, index) => {
-                    if (index === 0) return;
-                    const baseName = option.dataset.baseName || option.textContent.split(' (')[0].trim();
-                    option.dataset.baseName = baseName;
-
-                    const distanceLabel = getDistanceLabel(referenceOption, option);
-                    option.dataset.distanceLabel = distanceLabel;
-                    option.textContent = distanceLabel ? `${baseName} (${distanceLabel})` : baseName;
-                });
-            }
-
-            function renderWarehouseCustomDropdown(selectEl, dropdownEl) {
-                if (!dropdownEl) return;
-
-                const button = dropdownEl.querySelector('.dropdown-toggle');
-                const menu = dropdownEl.querySelector('.dropdown-menu');
-                if (!button || !menu) return;
-
-                const placeholderText = selectEl.options[0]?.textContent?.trim() || 'Select warehouse...';
-                const selectedOption = selectEl.options[selectEl.selectedIndex];
-
-                const selectedName = selectedOption?.dataset.baseName || selectedOption?.textContent?.replace(/\s*\([^)]*\)\s*$/, '').trim() || '';
-                const selectedDistance = selectedOption?.dataset.distanceLabel || '';
-
-                button.innerHTML = selectedOption && selectedOption.value ?
-                    `<span class="warehouse-name">${selectedName}</span><span class="warehouse-distance">${selectedDistance}</span>` :
-                    `<span class="warehouse-name text-muted">${placeholderText}</span>`;
-
-                menu.innerHTML = '';
-
-                Array.from(selectEl.options).forEach((option, index) => {
+                Array.from(warehouseToSelect.options).forEach((toOption, index) => {
                     if (index === 0) return;
 
-                    const name = option.dataset.baseName || option.textContent.split(' (')[0].trim();
-                    const distanceLabel = option.dataset.distanceLabel || '';
-                    const item = document.createElement('button');
-                    item.type = 'button';
-                    item.className = `dropdown-item${option.selected ? ' active' : ''}`;
-                    item.innerHTML = `<span class="warehouse-name">${name}</span><span class="warehouse-distance">${distanceLabel}</span>`;
-                    item.addEventListener('click', () => {
-                        selectEl.value = option.value;
-                        selectEl.dispatchEvent(new Event('change', {
-                            bubbles: true
-                        }));
-                    });
+                    const baseName = toOption.dataset.baseName || toOption.textContent.split(' (')[0].trim();
+                    toOption.dataset.baseName = baseName;
 
-                    menu.appendChild(item);
+                    const toLat = Number(toOption.dataset.nlat);
+                    const toLon = Number(toOption.dataset.nlong ?? toOption.dataset.long);
+
+                    if (!Number.isFinite(fromLat) || !Number.isFinite(fromLon) || !Number.isFinite(toLat) || !Number.isFinite(toLon)) {
+                        toOption.textContent = baseName;
+                        return;
+                    }
+
+                    const distanceKm = calculateDistanceKm(fromLat, fromLon, toLat, toLon);
+                    const roundedDistance = Math.round(distanceKm * 10) / 10;
+                    const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
+
+                    toOption.innerHTML = `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
                 });
-
-                button.disabled = !!selectEl.disabled;
-                dropdownEl.classList.toggle('d-none', selectEl.options.length <= 1);
-            }
-
-            function renderWarehouseDropdowns() {
-                renderWarehouseCustomDropdown(warehouseFromSelect, warehouseFromCustomDropdown);
-                renderWarehouseCustomDropdown(warehouseToSelect, warehouseToCustomDropdown);
             }
 
             // Request type change handler
@@ -811,15 +705,12 @@
             // Warehouse change handlers - display addresses (both From & To)
             warehouseFromSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
-                updateWarehouseDistanceLabels();
-                renderWarehouseDropdowns();
+                updateWarehouseToDistanceLabels();
                 generateEmail();
             });
 
             warehouseToSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseToAddressDisplay);
-                updateWarehouseDistanceLabels();
-                renderWarehouseDropdowns();
                 generateEmail();
             });
 
