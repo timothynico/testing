@@ -108,11 +108,11 @@
                                     <option value="{{ $wh->nidwh }}"
                                         data-customer="1"
                                         data-address="{{ $wh->calmtwh }}"
+                                        data-nlat="{{$wh->nlat}}"
+                                        data-nlong="{{$wh->nlong}}"
                                         data-nid="{{ $wh->nidwh }}"
                                         data-ckd="{{ $wh->ckdwh }}"
-                                        data-city="{{ $wh->ckotawh }}"
-                                        data-nlat="{{$wh->nlat}}"
-                                        data-nlong="{{$wh->nlong}}">
+                                        data-city="{{ $wh->ckotawh }}">
                                         {{ $wh->cnmwh }}
                                     </option>
                                 @endforeach
@@ -121,8 +121,9 @@
                                 @if (isset($yswh) && is_iterable($yswh))
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
+                                            data-nlong="{{$w->nlong}}"  data-nlat="{{$w->nlat}}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}" data-nlat="{{$w->nlat}}" data-nlong="{{$w->nlong}}" > 
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}" > 
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
@@ -145,12 +146,12 @@
                                 @foreach ($custwh as $wh)
                                     <option value="{{ $wh->nidwh }}"
                                         data-customer="1"
+                                        data-nlat="{{$wh->nlat}}"
+                                        data-long="{{$wh->nlong}}"
                                         data-address="{{ $wh->calmtwh }}"
                                         data-nid="{{ $wh->nidwh }}"
                                         data-ckd="{{ $wh->ckdwh }}"
-                                        data-city="{{ $wh->ckotawh }}"
-                                        data-nlat="{{$wh->nlat}}"
-                                        data-long="{{$wh->nlong}}">
+                                        data-city="{{ $wh->ckotawh }}">
                                         {{ $wh->cnmwh }}
                                     </option>
                                 @endforeach
@@ -159,8 +160,9 @@
                                 @if (isset($yswh) && is_iterable($yswh))
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
+                                            data-nlat="{{$w->nlat}}" data-nlong="{{$w->nlong}}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}" data-nlat="{{$w->nlat}}" data-nlong="{{$w->nlong}}">
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}">
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
@@ -439,6 +441,8 @@
                 option.dataset.nid = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
                 option.dataset.ckd = warehouse.ckdwh || '';
                 option.dataset.city = warehouse.ckotawh || '';
+                option.dataset.nlat = warehouse.nlat;
+                option.dataset.nlong = warehouse.nlong;
 
                 if (isCustomer) {
                     option.dataset.customer = '1';
