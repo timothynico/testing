@@ -463,14 +463,14 @@
                     const baseName = option.dataset.baseName || option.textContent || '';
                     const distanceLabel = option.dataset.distanceLabel || '';
                     if (!distanceLabel) {
-                        return `<span class="distance-label-name">${baseName}</span>`;
+                        return baseName;
                     }
-                    return `<span class="distance-label-name">${baseName}</span> <span class="distance-label-value">${distanceLabel}</span>`;
+                    return `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
                 };
 
                 const sync = () => {
                     const selectedOption = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
-                    trigger.innerHTML = `<span class="d-inline-flex gap-1">${selectedOption ? renderLabel(selectedOption) : ''}</span>`;
+                    trigger.innerHTML = `<span>${selectedOption ? renderLabel(selectedOption) : ''}</span>`;
                     trigger.disabled = selectEl.disabled;
 
                     menu.innerHTML = '';
@@ -645,8 +645,7 @@
                     const roundedDistance = Math.round(distanceKm * 10) / 10;
                     const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
 
-                    toOption.dataset.distanceLabel = distanceLabel;
-                    toOption.textContent = `${baseName} (${distanceLabel})`;
+                    toOption.innerHTML = `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
                 });
             }
 
