@@ -110,7 +110,9 @@
                                         data-address="{{ $wh->calmtwh }}"
                                         data-nid="{{ $wh->nidwh }}"
                                         data-ckd="{{ $wh->ckdwh }}"
-                                        data-city="{{ $wh->ckotawh }}">
+                                        data-city="{{ $wh->ckotawh }}"
+                                        data-nlat="{{$wh->nlat}}"
+                                        data-nlong="{{$wh->nlong}}">
                                         {{ $wh->cnmwh }}
                                     </option>
                                 @endforeach
@@ -120,7 +122,7 @@
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}">
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}" data-nlat="{{$w->nlat}}" data-nlong="{{$w->nlong}}" > 
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
@@ -146,7 +148,9 @@
                                         data-address="{{ $wh->calmtwh }}"
                                         data-nid="{{ $wh->nidwh }}"
                                         data-ckd="{{ $wh->ckdwh }}"
-                                        data-city="{{ $wh->ckotawh }}">
+                                        data-city="{{ $wh->ckotawh }}"
+                                        data-nlat="{{$wh->nlat}}"
+                                        data-long="{{$wh->nlong}}">
                                         {{ $wh->cnmwh }}
                                     </option>
                                 @endforeach
@@ -156,7 +160,7 @@
                                     @foreach ($yswh as $w)
                                         <option value="{{ $w->nidcompwh ?? $loop->index }}"
                                             data-address="{{ $w->calmtwh }}" data-nid="{{ $w->nidcompwh }}"
-                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}">
+                                            data-ckd="{{ $w->ckdwh }}" data-city="{{$w->ckotawh}}" data-nlat="{{$w->nlat}}" data-nlong="{{$w->nlong}}">
                                             {{ $w->cnmwh }}
                                         </option>
                                     @endforeach
