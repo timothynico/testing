@@ -781,7 +781,7 @@
                     if (!distanceLabel) {
                         return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span></span>`;
                     }
-                    return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span><span style="color:red; margin-left:12px; white-space:nowrap;">${distanceLabel}</span></span>`
+                    return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span><span style="color:#dc3545; margin-left:12px; white-space:nowrap;">${distanceLabel}</span></span>`
                 };
 
                 const sync = () => {
