@@ -637,8 +637,7 @@
                     const roundedDistance = Math.round(distanceKm * 10) / 10;
                     const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
 
-                    toOption.dataset.distanceLabel = distanceLabel;
-                    toOption.textContent = `${baseName} (${distanceLabel})`;
+                    toOption.innerHTML = `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
                 });
             }
 

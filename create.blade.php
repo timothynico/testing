@@ -867,7 +867,7 @@
                         option.dataset.type = addr.type;
                         option.dataset.baseLabel = addr.label;
                         option.dataset.distanceLabel = addr.distance;
-                        option.textContent = `${addr.label} ${addr.distance}`;
+                        option.innerHTML = `${addr.label} <span style="color:#198754;">${addr.distance}</span>`;
                         selectElement.appendChild(option);
                     });
 
