@@ -150,7 +150,7 @@
                                         data-ckd="{{ $wh->ckdwh }}"
                                         data-city="{{ $wh->ckotawh }}"
                                         data-nlat="{{$wh->nlat}}"
-                                        data-long="{{$wh->nlong}}">
+                                        data-nlong="{{$wh->nlong}}">
                                         {{ $wh->cnmwh }}
                                     </option>
                                 @endforeach
@@ -439,6 +439,8 @@
                 option.dataset.nid = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
                 option.dataset.ckd = warehouse.ckdwh || '';
                 option.dataset.city = warehouse.ckotawh || '';
+                option.dataset.nlat = warehouse.nlat != null ? String(warehouse.nlat) : '';
+                option.dataset.nlong = warehouse.nlong != null ? String(warehouse.nlong) : '';
 
                 if (isCustomer) {
                     option.dataset.customer = '1';
@@ -683,6 +685,8 @@
                 return {
                     nid: opt.dataset.nid || null,
                     ckd: opt.dataset.ckd || null,
+                    nlat: opt.dataset.nlat || null,
+                    nlong: opt.dataset.nlong || null,
                     text: opt.textContent || opt.innerText || ''
                 };
             }
