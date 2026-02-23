@@ -436,6 +436,7 @@
                 const isCustomer = optionType === 'customer';
 
                 option.value = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
+                option.dataset.baseName = warehouse.cnmwh || '';
                 option.textContent = warehouse.cnmwh || '';
                 option.dataset.address = warehouse.calmtwh || '';
                 option.dataset.nid = isCustomer ? String(warehouse.nidwh ?? '') : String(warehouse.nidcompwh ?? '');
@@ -567,7 +568,6 @@
 
                     if (!Number.isFinite(fromLat) || !Number.isFinite(fromLon) || !Number.isFinite(toLat) || !Number.isFinite(toLon)) {
                         toOption.textContent = baseName;
-                        toOption.style.color = '';
                         return;
                     }
 
@@ -575,8 +575,7 @@
                     const roundedDistance = Math.round(distanceKm * 10) / 10;
                     const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
 
-                    toOption.textContent = `${baseName} (${distanceLabel})`;
-                    toOption.style.color = '#198754';
+                    toOption.innerHTML = `${baseName} <span style="color:#198754;">${distanceLabel}</span>`;
                 });
             }
 

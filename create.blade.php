@@ -798,7 +798,9 @@
                         option.dataset.address = addr.address;
                         option.dataset.city = addr.city;
                         option.dataset.type = addr.type;
-                        option.textContent = addr.label + " (" + addr.distance + ")";
+                        option.dataset.baseLabel = addr.label;
+                        option.dataset.distanceLabel = addr.distance;
+                        option.innerHTML = `${addr.label} <span style="color:#198754;">${addr.distance}</span>`;
                         selectElement.appendChild(option);
                     });
 
