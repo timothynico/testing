@@ -853,7 +853,6 @@
                 const senderCity = selectedFromAddressOption?.dataset?.city || fromCity.value || '';
 
                 try {
-                    // const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(fromCity.value)}`);
                     const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(senderCity)}`);
                     const addresses = await response.json();
 
@@ -871,13 +870,13 @@
                         selectElement.appendChild(option);
                     });
 
-                    if (addresses.length === 1) {
+                    if (addresses.length >= 1) {
                         selectElement.selectedIndex = 1;
                         selectElement.dispatchEvent(new Event('change'));
                     }
+
                 } catch (error) {
                     console.error('Error loading addresses:', error);
-                    console.log(error);
                     selectElement.innerHTML = '<option value="">Error loading addresses</option>';
                 }
             }
