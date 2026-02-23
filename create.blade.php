@@ -754,6 +754,73 @@
             // Real drivers data from database by logistics company
             const driversData = @json($logisticsData);
 
+            function initStyledDistanceDropdown(selectEl) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'dropdown w-100';
+
+                const trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'form-select form-select-sm text-start d-flex justify-content-between align-items-center';
+                trigger.setAttribute('data-bs-toggle', 'dropdown');
+                trigger.setAttribute('aria-expanded', 'false');
+                trigger.innerHTML = '<span></span>';
+
+                const menu = document.createElement('ul');
+                menu.className = 'dropdown-menu w-100';
+                menu.style.maxHeight = '260px';
+                menu.style.overflowY = 'auto';
+
+                wrapper.appendChild(trigger);
+                wrapper.appendChild(menu);
+                selectEl.insertAdjacentElement('afterend', wrapper);
+                selectEl.classList.add('d-none');
+
+                const renderLabel = option => {
+                    const baseLabel = option.dataset.baseLabel || option.textContent || '';
+                    const distanceLabel = option.dataset.distanceLabel || '';
+                    if (!distanceLabel) {
+                        return `${baseLabel}`;
+                    }
+                    return `${baseLabel} <span style="color:#198754;">${distanceLabel}</span>`;
+                };
+
+                const sync = () => {
+                    const selectedOption = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
+                    const selectedText = selectedOption ? renderLabel(selectedOption) : '';
+                    trigger.innerHTML = `<span>${selectedText}</span>`;
+
+                    menu.innerHTML = '';
+                    Array.from(selectEl.options).forEach((option, index) => {
+                        const item = document.createElement('li');
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'dropdown-item';
+                        btn.innerHTML = renderLabel(option);
+
+                        if (option.disabled) {
+                            btn.disabled = true;
+                        }
+
+                        btn.addEventListener('click', () => {
+                            selectEl.selectedIndex = index;
+                            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+
+                        item.appendChild(btn);
+                        menu.appendChild(item);
+                    });
+                };
+
+                const observer = new MutationObserver(sync);
+                observer.observe(selectEl, { childList: true, subtree: true, characterData: true, attributes: true });
+                selectEl.addEventListener('change', sync);
+                sync();
+
+                return { sync };
+            }
+
+            const toAddressStyledDropdown = initStyledDistanceDropdown(toAddressSelect);
+
             // Helper functions first...
 
             function clearToCustomerFields() {
@@ -798,7 +865,9 @@
                         option.dataset.address = addr.address;
                         option.dataset.city = addr.city;
                         option.dataset.type = addr.type;
-                        option.textContent = addr.label + " (" + addr.distance + ")";
+                        option.dataset.baseLabel = addr.label;
+                        option.dataset.distanceLabel = addr.distance;
+                        option.textContent = `${addr.label} ${addr.distance}`;
                         selectElement.appendChild(option);
                     });
 
