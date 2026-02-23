@@ -1158,6 +1158,9 @@
             fromEntity.addEventListener('change', async function() {
                 const selectedOption = this.options[this.selectedIndex];
 
+                toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                clearToCustomerFields();
+
                 if (this.value) {
                     const entityType = selectedOption.dataset.type;
                     document.getElementById('fromType').value = entityType;
