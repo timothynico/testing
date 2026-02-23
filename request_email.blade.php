@@ -467,6 +467,7 @@
                     const selectedOption = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
                     const selectedText = selectedOption ? renderLabel(selectedOption) : '';
                     trigger.innerHTML = `<span>${selectedText}</span>`;
+                    trigger.disabled = selectEl.disabled;
 
                     menu.innerHTML = '';
                     Array.from(selectEl.options).forEach((option, index) => {
@@ -493,11 +494,13 @@
                 const observer = new MutationObserver(sync);
                 observer.observe(selectEl, { childList: true, subtree: true, characterData: true, attributes: true });
                 selectEl.addEventListener('change', sync);
+                selectEl.addEventListener('input', sync);
                 sync();
 
                 return { sync };
             }
 
+            const warehouseFromStyledDropdown = initStyledDistanceDropdown(warehouseFromSelect);
             const warehouseToStyledDropdown = initStyledDistanceDropdown(warehouseToSelect);
 
             function buildWarehouseOption(warehouse, optionType) {
@@ -570,12 +573,12 @@
                         warehouseToSelect.value = warehouseToSelect.options[1].value;
                     }
 
-                    // For warehouse PIC, destination customer warehouse is fixed
-                    warehouseToSelect.disabled = isWarehousePic;
-                    warehouseToSelect.required = false;
+                    // For warehouse PIC, source Yanasurya warehouse is fixed
+                    warehouseFromSelect.disabled = isWarehousePic;
+                    warehouseFromSelect.required = !isWarehousePic;
 
-                    warehouseFromSelect.disabled = false;
-                    warehouseFromSelect.required = true;
+                    warehouseToSelect.disabled = false;
+                    warehouseToSelect.required = true;
                 } else {
                     // Return: From = Customer (custwh), To = Yanasurya (yswh)
                     setWarehouseOptions(warehouseFromSelect, 'customer');
@@ -596,7 +599,7 @@
                 // Update address displays immediately
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
-                updateWarehouseToDistanceLabels();
+                updateWarehouseDistanceLabels();
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
@@ -621,34 +624,58 @@
                 return (earthRadiusKm * c) * 1.1;
             }
 
-            function updateWarehouseToDistanceLabels() {
-                const fromOption = warehouseFromSelect.options[warehouseFromSelect.selectedIndex];
-                const fromLat = Number(fromOption?.dataset.nlat);
-                const fromLon = Number(fromOption?.dataset.nlong ?? fromOption?.dataset.long);
-
-                Array.from(warehouseToSelect.options).forEach((toOption, index) => {
+            function resetDistanceLabels(selectEl) {
+                Array.from(selectEl.options).forEach((option, index) => {
                     if (index === 0) return;
 
-                    const baseName = toOption.dataset.baseName || toOption.textContent.split(' (')[0].trim();
-                    toOption.dataset.baseName = baseName;
+                    const baseName = option.dataset.baseName || option.textContent.split(' (')[0].trim();
+                    option.dataset.baseName = baseName;
+                    option.dataset.distanceLabel = '';
+                    option.textContent = baseName;
+                });
+            }
 
-                    const toLat = Number(toOption.dataset.nlat);
-                    const toLon = Number(toOption.dataset.nlong ?? toOption.dataset.long);
+            function setDistanceLabels(targetSelect, sourceSelect) {
+                const sourceOption = sourceSelect.options[sourceSelect.selectedIndex];
+                const sourceLat = Number(sourceOption?.dataset.nlat);
+                const sourceLon = Number(sourceOption?.dataset.nlong ?? sourceOption?.dataset.long);
 
-                    if (!Number.isFinite(fromLat) || !Number.isFinite(fromLon) || !Number.isFinite(toLat) || !Number.isFinite(toLon)) {
-                        toOption.dataset.distanceLabel = '';
-                        toOption.textContent = baseName;
+                Array.from(targetSelect.options).forEach((targetOption, index) => {
+                    if (index === 0) return;
+
+                    const baseName = targetOption.dataset.baseName || targetOption.textContent.split(' (')[0].trim();
+                    targetOption.dataset.baseName = baseName;
+
+                    const targetLat = Number(targetOption.dataset.nlat);
+                    const targetLon = Number(targetOption.dataset.nlong ?? targetOption.dataset.long);
+
+                    if (!Number.isFinite(sourceLat) || !Number.isFinite(sourceLon) || !Number.isFinite(targetLat) || !Number.isFinite(targetLon)) {
+                        targetOption.dataset.distanceLabel = '';
+                        targetOption.textContent = baseName;
                         return;
                     }
 
-                    const distanceKm = calculateDistanceKm(fromLat, fromLon, toLat, toLon);
+                    const distanceKm = calculateDistanceKm(sourceLat, sourceLon, targetLat, targetLon);
                     const roundedDistance = Math.round(distanceKm * 10) / 10;
                     const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
 
-                    toOption.dataset.distanceLabel = distanceLabel;
-                    toOption.textContent = baseName;
+                    targetOption.dataset.distanceLabel = distanceLabel;
+                    targetOption.textContent = baseName;
                 });
+            }
 
+            function updateWarehouseDistanceLabels() {
+                const isOrder = requestTypeOrder.checked;
+
+                if (isOrder) {
+                    setDistanceLabels(warehouseFromSelect, warehouseToSelect);
+                    resetDistanceLabels(warehouseToSelect);
+                } else {
+                    setDistanceLabels(warehouseToSelect, warehouseFromSelect);
+                    resetDistanceLabels(warehouseFromSelect);
+                }
+
+                warehouseFromStyledDropdown.sync();
                 warehouseToStyledDropdown.sync();
             }
 
@@ -778,12 +805,13 @@
             // Warehouse change handlers - display addresses (both From & To)
             warehouseFromSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
-                updateWarehouseToDistanceLabels();
+                updateWarehouseDistanceLabels();
                 generateEmail();
             });
 
             warehouseToSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseToAddressDisplay);
+                updateWarehouseDistanceLabels();
                 generateEmail();
             });
 
