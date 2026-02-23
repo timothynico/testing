@@ -599,7 +599,7 @@
                 // Update address displays immediately
                 updateWarehouseAddressDisplay(warehouseFromSelect, warehouseFromAddressDisplay);
                 updateWarehouseAddressDisplay(warehouseToSelect, warehouseToAddressDisplay);
-                updateWarehouseDistanceLabels();
+                updateWarehouseDistanceLabels(true);
             }
 
             function updateWarehouseAddressDisplay(selectEl, addressDisplayEl) {
@@ -638,6 +638,7 @@
 
             function sortSelectOptionsByDistance(selectEl, autoSelectSmallest = false) {
                 const options = Array.from(selectEl.options);
+                const previousValue = selectEl.value;
 
                 if (options.length <= 2) return;
 
@@ -661,12 +662,16 @@
                 selectEl.appendChild(placeholder);
                 sortableOptions.forEach(option => selectEl.appendChild(option));
 
-                if (autoSelectSmallest && sortableOptions.length > 0) {
+                const hasPreviousValue = previousValue && sortableOptions.some(option => option.value === previousValue);
+
+                if (hasPreviousValue) {
+                    selectEl.value = previousValue;
+                } else if (autoSelectSmallest && sortableOptions.length > 0) {
                     selectEl.value = sortableOptions[0].value;
                 }
             }
 
-            function setDistanceLabels(targetSelect, sourceSelect) {
+            function setDistanceLabels(targetSelect, sourceSelect, autoSelectSmallest = false) {
                 const sourceOption = sourceSelect.options[sourceSelect.selectedIndex];
                 const sourceLat = Number(sourceOption?.dataset.nlat);
                 const sourceLon = Number(sourceOption?.dataset.nlong ?? sourceOption?.dataset.long);
@@ -696,17 +701,17 @@
                     targetOption.textContent = baseName;
                 });
 
-                sortSelectOptionsByDistance(targetSelect, true);
+                sortSelectOptionsByDistance(targetSelect, autoSelectSmallest);
             }
 
-            function updateWarehouseDistanceLabels() {
+            function updateWarehouseDistanceLabels(autoSelectSmallest = false) {
                 const isOrder = requestTypeOrder.checked;
 
                 if (isOrder) {
-                    setDistanceLabels(warehouseFromSelect, warehouseToSelect);
+                    setDistanceLabels(warehouseFromSelect, warehouseToSelect, autoSelectSmallest);
                     resetDistanceLabels(warehouseToSelect);
                 } else {
-                    setDistanceLabels(warehouseToSelect, warehouseFromSelect);
+                    setDistanceLabels(warehouseToSelect, warehouseFromSelect, autoSelectSmallest);
                     resetDistanceLabels(warehouseFromSelect);
                 }
 
@@ -840,13 +845,13 @@
             // Warehouse change handlers - display addresses (both From & To)
             warehouseFromSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseFromAddressDisplay);
-                updateWarehouseDistanceLabels();
+                updateWarehouseDistanceLabels(false);
                 generateEmail();
             });
 
             warehouseToSelect.addEventListener('change', function() {
                 updateWarehouseAddressDisplay(this, warehouseToAddressDisplay);
-                updateWarehouseDistanceLabels();
+                updateWarehouseDistanceLabels(false);
                 generateEmail();
             });
 
