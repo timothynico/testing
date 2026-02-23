@@ -460,7 +460,7 @@
                         return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span></span>`;
                     }
 
-                    return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span><span style="color:red; margin-left:12px; white-space:nowrap;">${distanceLabel}</span></span>`;
+                    return `<span class="d-flex justify-content-between align-items-center w-100"><span>${baseLabel}</span><span style="color:#dc3545; margin-left:12px; white-space:nowrap;">${distanceLabel}</span></span>`;
                 };
 
                 const sync = () => {
@@ -574,10 +574,10 @@
                     }
 
                     // For warehouse PIC, source Yanasurya warehouse is fixed
-                    warehouseFromSelect.disabled = isWarehousePic;
-                    warehouseFromSelect.required = !isWarehousePic;
+                    warehouseFromSelect.disabled = false;
+                    warehouseFromSelect.required = true;
 
-                    warehouseToSelect.disabled = false;
+                    warehouseToSelect.disabled = isWarehousePic;
                     warehouseToSelect.required = true;
                 } else {
                     // Return: From = Customer (custwh), To = Yanasurya (yswh)
@@ -657,7 +657,7 @@
 
                     const distanceKm = calculateDistanceKm(sourceLat, sourceLon, targetLat, targetLon);
                     const roundedDistance = Math.round(distanceKm * 10) / 10;
-                    const distanceLabel = roundedDistance === 0 ? 'Same city' : `${roundedDistance} Km`;
+                    const distanceLabel = roundedDistance === 0 ? '(Same city)' : `(${roundedDistance} Km)`;
 
                     targetOption.dataset.distanceLabel = distanceLabel;
                     targetOption.textContent = baseName;
