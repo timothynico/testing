@@ -373,6 +373,14 @@
             background-color: #198754;
             border-color: #198754;
         }
+
+        .distance-label-name {
+            color: #212529;
+        }
+
+        .distance-label-value {
+            color: #198754 !important;
+        }
     </style>
 @endpush
 
