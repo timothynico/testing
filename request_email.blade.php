@@ -631,8 +631,39 @@
                     const baseName = option.dataset.baseName || option.textContent.split(' (')[0].trim();
                     option.dataset.baseName = baseName;
                     option.dataset.distanceLabel = '';
+                    option.dataset.distanceValue = '';
                     option.textContent = baseName;
                 });
+            }
+
+            function sortSelectOptionsByDistance(selectEl, autoSelectSmallest = false) {
+                const options = Array.from(selectEl.options);
+
+                if (options.length <= 2) return;
+
+                const placeholder = options[0];
+                const sortableOptions = options.slice(1);
+
+                sortableOptions.sort((optionA, optionB) => {
+                    const distanceA = Number(optionA.dataset.distanceValue);
+                    const distanceB = Number(optionB.dataset.distanceValue);
+                    const safeDistanceA = Number.isFinite(distanceA) ? distanceA : Number.POSITIVE_INFINITY;
+                    const safeDistanceB = Number.isFinite(distanceB) ? distanceB : Number.POSITIVE_INFINITY;
+
+                    if (safeDistanceA !== safeDistanceB) {
+                        return safeDistanceA - safeDistanceB;
+                    }
+
+                    return (optionA.dataset.baseName || '').localeCompare(optionB.dataset.baseName || '');
+                });
+
+                selectEl.innerHTML = '';
+                selectEl.appendChild(placeholder);
+                sortableOptions.forEach(option => selectEl.appendChild(option));
+
+                if (autoSelectSmallest && sortableOptions.length > 0) {
+                    selectEl.value = sortableOptions[0].value;
+                }
             }
 
             function setDistanceLabels(targetSelect, sourceSelect) {
@@ -651,6 +682,7 @@
 
                     if (!Number.isFinite(sourceLat) || !Number.isFinite(sourceLon) || !Number.isFinite(targetLat) || !Number.isFinite(targetLon)) {
                         targetOption.dataset.distanceLabel = '';
+                        targetOption.dataset.distanceValue = '';
                         targetOption.textContent = baseName;
                         return;
                     }
@@ -660,8 +692,11 @@
                     const distanceLabel = roundedDistance === 0 ? '(Same city)' : `(${roundedDistance} Km)`;
 
                     targetOption.dataset.distanceLabel = distanceLabel;
+                    targetOption.dataset.distanceValue = String(roundedDistance);
                     targetOption.textContent = baseName;
                 });
+
+                sortSelectOptionsByDistance(targetSelect, true);
             }
 
             function updateWarehouseDistanceLabels() {
