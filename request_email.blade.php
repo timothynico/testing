@@ -548,7 +548,7 @@
                     Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-                return earthRadiusKm * c;
+                return (earthRadiusKm * c) * 1.1;
             }
 
             function updateWarehouseToDistanceLabels() {
