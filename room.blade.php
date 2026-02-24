@@ -10,11 +10,12 @@
                         <i class="bi bi-search"></i>
                     </span>
                     <input type="text" class="form-control border-start-0"
-                        placeholder="{{ __('Search feedback...') }}" id="searchFeedback">
+                        placeholder="{{ __('Search feedback...') }}" id="searchFeedback"
+                        wire:model.live="search">
                 </div>
 
                 <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm" id="filterMenu">
+                    <select class="form-select form-select-sm" id="filterMenu" wire:model.live="filterMenu">
                         <option value="">{{ __('All Menus') }}</option>
                         <option value="delivery">{{ __('Delivery') }}</option>
                         <option value="invoice">{{ __('Invoice') }}</option>
@@ -26,7 +27,7 @@
                         <option value="other">{{ __('Other') }}</option>
                     </select>
 
-                    <select class="form-select form-select-sm" id="filterStatus">
+                    <select class="form-select form-select-sm" id="filterStatus" wire:model.live="filterStatus">
                         <option value="">{{ __('All Status') }}</option>
                         <option value="in_progress">{{ __('In Progress') }}</option>
                         <option value="resolved">{{ __('Resolved') }}</option>
@@ -46,15 +47,17 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <h6 class="feedback-title mb-0">{{ $item['creference'] }}</h6>
+                                    <h6 class="feedback-title mb-0">
+                                        {{ $item['creference'] ?? 'Complaint by ' . ($item['applicant']->name ?? 'Unknown') }}
+                                    </h6>
                                     <span class="feedback-menu">{{ ucfirst($item['ctype']) }}</span>
                                 </div>
                                 <p class="feedback-user mb-0">
                                     {{ $item['applicant']->name ?? 'Unknown' }}
-                                    <span class="user-role">({{ ucfirst($item['applicant']->role ?? 'User') }})</span>
+                                    <span class="user-role">({{ ucfirst($item['customer']->cnmcust ?? 'Customer') }})</span>
                                 </p>
-                                <p class="feedback-description text-truncate mb-0">
-                                    {{ $item['cdescription'] ?? 'No description' }}
+                                <p class="feedback-description text-truncate mb-0 text-capitalize">
+                                    {{ $item['cissue'] ?? 'Other' }}
                                 </p>
                             </div>
                             <div class="text-end flex-shrink-0">
@@ -70,7 +73,7 @@
                 @empty
                     <div class="text-center p-4 text-muted">
                         <i class="bi bi-inbox display-4"></i>
-                        <p class="mt-2">{{ __('No chatrooms found') }}</p>
+                        <p class="mt-2">{{ __('No feedbacks found') }}</p>
                     </div>
                 @endforelse
             </div>
@@ -97,13 +100,20 @@
                     <div class="chat-header border-bottom p-3 bg-light">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="mb-0">{{ $chatRoom->creference }}</h6>
-                                <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->ctype) }}</small>
+                                <h6 class="mb-0">{{ $chatRoom->creference }} - {{ ucfirst($chatRoom->ctype) }}</h6>
+                                <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
                             </div>
                             <div>
-                                <span
-                                    class="badge bg-{{ $chatRoom->cstatus === 'open' ? 'success' : ($chatRoom->cstatus === 'resolved' ? 'info' : 'secondary') }}">
-                                    {{ ucfirst($chatRoom->cstatus) }}
+                                <span class="badge text-capitalize
+                                    @if ($chatRoom->cstatus === 'in_progress')
+                                        bg-warning
+                                    @elseif ($chatRoom->cstatus === 'resolved')
+                                        bg-info
+                                    @elseif ($chatRoom->cstatus === 'closed')
+                                        bg-secondary
+                                    @endif
+                                ">
+                                    {{ ucfirst(str_replace('_', ' ', $chatRoom->cstatus)) }}
                                 </span>
                             </div>
                         </div>
@@ -111,8 +121,28 @@
 
                     {{-- Chat Messages --}}
                     <div class="chat-messages" id="chatMessages">
+                        {{-- System Header --}}
+                        <div class="system-message">
+                            <div class="system-card">
+                                <i class="bi bi-megaphone"></i>
+                                <div>
+                                    <strong>Complaint Ticket Created</strong>
+                                    <p class="mb-0">
+                                        {{ $chatRoom->applicant->name ?? 'User' }}
+                                        - {{ $chatRoom->applicant->customer->cnmcust ?? 'Customer' }}
+                                        on {{ \Carbon\Carbon::parse($chatRoom->created_at)->format('d M Y H:i') }}
+                                    </p>
+                                    <small class="text-muted">
+                                        Ref: {{ $chatRoom->creference }}
+                                    </small>
+                                    <div class="mt-1">
+                                        {{ $chatRoom->cdescription }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         @forelse ($messages as $message)
-                            <div class="message {{ $message['niduser'] == Auth::id() ? 'outgoing' : 'incoming' }}">
+                            <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}">
                                 <div class="message-content">
                                     <div class="message-header">
                                         <span class="message-sender">{{ $message['user']['name'] }}</span>
@@ -139,15 +169,16 @@
                             <div class="input-group mb-2">
                                 <input type="text" class="form-control" placeholder="{{ __('Type a message...') }}"
                                     wire:model="newMessage" autocomplete="off"
-                                    {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
                                 <button class="btn btn-success" type="submit"
-                                    {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
                                     <i class="bi bi-send-fill"></i> {{ __('Send') }}
                                 </button>
                             </div>
                             @php
-                                $canManageStatus = Auth::id() === ($chatRoom->applicant->id ?? null)
-                                    || ($chatRoom->applicant->role ?? null) === 'admin';
+                                $canManageStatus =
+                                    Auth::id() === ($chatRoom->applicant->id ?? null)
+                                    || Auth::user()?->role === 'admin';
                             @endphp
                             @if ($canManageStatus)
                                 <div class="d-flex gap-2">
@@ -378,12 +409,10 @@
         }
 
         .message.incoming {
-            flex-direction: row;
             justify-content: flex-start;
         }
 
         .message.outgoing {
-            flex-direction: row-reverse;
             justify-content: flex-end;
         }
 
@@ -437,16 +466,42 @@
             line-height: 1.4;
         }
 
+        /* Meta (Name + Time) */
+        .meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-bottom: 4px;
+            color: #6c757d;
+        }
+
+        .name {
+            font-weight: 600;
+            color: #495057;
+        }
+
         /* System Message */
         .system-message {
-            text-align: center;
-            margin: 12px 0;
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
             font-size: 0.8rem;
             color: #6c757d;
         }
 
-        .system-message i {
-            margin-right: 4px;
+        .system-card {
+            display: flex;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 12px 14px;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .system-card i {
+            font-size: 1rem;
+            margin-top: 2px;
         }
 
         /* Chat Input */
@@ -626,6 +681,11 @@
                         console.error('❌ Echo error:', error);
                     });
             });
+
+            window.Echo.private(`chatroom.${feedbackId}`)
+                .listen('ChatMessageSent', (e) => {
+                    @this.call('messageReceived', e);
+                });
         });
     </script>
 @endpush
