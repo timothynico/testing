@@ -141,6 +141,22 @@
                                 </div>
                             </div>
                         </div>
+                        @if($chatRoom->auto_close_at && $chatRoom->cstatus === 'in_progress')
+                            <div class="system-message mt-2">
+                                <div class="system-card border-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    <div>
+                                        <small class="text-muted">
+                                            This ticket will be automatically closed if there is no new message
+                                            within <strong>2 days</strong> on
+                                            {{ \Carbon\Carbon::parse($chatRoom->auto_close_at)->format('d M Y H:i') }}.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Messages --}}
                         @forelse ($messages as $message)
                             <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}">
                                 <div class="message-content">
@@ -227,7 +243,7 @@
                                         wire:model="attachment"
                                         accept="image/*"
                                         hidden
-                                        {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+                                        {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
                                 </label>
 
                                 {{-- Text Input --}}
@@ -236,7 +252,7 @@
                                     placeholder="{{ __('Type a message...') }}"
                                     wire:model="newMessage"
                                     autocomplete="off"
-                                    {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
 
                                 {{-- Send Button --}}
                                 <button class="btn btn-success" type="submit"
