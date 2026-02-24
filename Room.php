@@ -19,6 +19,16 @@ class Room extends Component
     public $statusReason = '';
     public $idClose = null;
 
+    protected function canManageStatus(?ChatRoom $chatRoom): bool
+    {
+        if (!$chatRoom || !$chatRoom->applicant) {
+            return false;
+        }
+
+        return (int) Auth::id() === (int) $chatRoom->applicant->id
+            || $chatRoom->applicant->role === 'admin';
+    }
+
     public function mount()
     {
         //
@@ -154,6 +164,10 @@ class Room extends Component
 
             $this->chatRoom = ChatRoom::findOrFail($this->chatRoomId);
 
+            if (!$this->canManageStatus($this->chatRoom)) {
+                return;
+            }
+
             if ($status === 'resolved' && in_array($this->chatRoom->cstatus, ['resolved', 'closed'], true)) {
                 return;
             }
@@ -176,6 +190,10 @@ class Room extends Component
         ]);
 
         $chatRoom = ChatRoom::findOrFail($this->chatRoomId);
+
+        if (!$this->canManageStatus($chatRoom)) {
+            return;
+        }
 
         $chatRoom->update([
             'cstatus' => $this->pendingStatus,

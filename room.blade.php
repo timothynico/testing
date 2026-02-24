@@ -145,20 +145,26 @@
                                     <i class="bi bi-send-fill"></i> {{ __('Send') }}
                                 </button>
                             </div>
-                            <div class="d-flex gap-2">
-                                @if ($chatRoom->cstatus !== 'resolved' && $chatRoom->cstatus !== 'closed')
-                                    <button class="btn btn-sm btn-success" type="button"
-                                        wire:click="updateStatus('resolved')">
-                                        <i class="bi bi-check-circle"></i> {{ __('Mark as Resolved') }}
-                                    </button>
-                                @endif
-                                @if (!in_array($chatRoom->cstatus, ['resolved', 'closed'], true))
-                                    <button class="btn btn-sm btn-danger" type="button"
-                                        wire:click="updateStatus('closed')">
-                                        <i class="bi bi-x-circle"></i> {{ __('Close Conversation') }}
-                                    </button>
-                                @endif
-                            </div>
+                            @php
+                                $canManageStatus = Auth::id() === ($chatRoom->applicant->id ?? null)
+                                    || ($chatRoom->applicant->role ?? null) === 'admin';
+                            @endphp
+                            @if ($canManageStatus)
+                                <div class="d-flex gap-2">
+                                    @if ($chatRoom->cstatus !== 'resolved' && $chatRoom->cstatus !== 'closed')
+                                        <button class="btn btn-sm btn-success" type="button"
+                                            wire:click="updateStatus('resolved')">
+                                            <i class="bi bi-check-circle"></i> {{ __('Mark as Resolved') }}
+                                        </button>
+                                    @endif
+                                    @if (!in_array($chatRoom->cstatus, ['resolved', 'closed'], true))
+                                        <button class="btn btn-sm btn-danger" type="button"
+                                            wire:click="updateStatus('closed')">
+                                            <i class="bi bi-x-circle"></i> {{ __('Close Conversation') }}
+                                        </button>
+                                    @endif
+                                </div>
+                            @endif
                         </form>
                     </div>
                 </div>
