@@ -141,42 +141,39 @@ class Room extends Component
         ])->layout('layouts.app');
     }
 
-    public function updateStatus($status)
+    public function updateStatus($status = null)
     {
         if (!$this->chatRoomId) {
             return;
         }
 
-        if (!in_array($status, ['resolved', 'closed'], true)) {
+        if ($status !== null) {
+            if (!in_array($status, ['resolved', 'closed'], true)) {
+                return;
+            }
+
+            $this->chatRoom = ChatRoom::findOrFail($this->chatRoomId);
+
+            if ($status === 'resolved' && in_array($this->chatRoom->cstatus, ['resolved', 'closed'], true)) {
+                return;
+            }
+
+            if ($status === 'closed' && $this->chatRoom->cstatus === 'closed') {
+                return;
+            }
+
+            $this->pendingStatus = $status;
+            $this->statusReason = '';
+
+            $this->dispatch('open-status-modal');
+
             return;
         }
 
-        $this->chatRoom = ChatRoom::findOrFail($this->chatRoomId);
-
-        if ($status === 'resolved' && in_array($this->chatRoom->cstatus, ['resolved', 'closed'], true)) {
-            return;
-        }
-
-        if ($status === 'closed' && $this->chatRoom->cstatus === 'closed') {
-            return;
-        }
-
-        $this->pendingStatus = $status;
-        $this->statusReason = '';
-
-        $this->dispatch('open-status-modal');
-    }
-
-    public function submitStatusUpdate()
-    {
         $this->validate([
             'pendingStatus' => 'required|in:resolved,closed',
             'statusReason' => 'required|string|max:1000',
         ]);
-
-        if (!$this->chatRoomId) {
-            return;
-        }
 
         $chatRoom = ChatRoom::findOrFail($this->chatRoomId);
 
