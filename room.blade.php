@@ -166,6 +166,51 @@
     </div>
 </div>
 
+
+<!-- Status Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1" wire:ignore.self>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                    {{ __('Update Conversation Status') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-warning small">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {{ __('Please provide the reason before updating the conversation status.') }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        {{ __('Reason') }}
+                        <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" rows="4" wire:model.defer="statusReason"
+                        placeholder="{{ __('Please provide details...') }}"></textarea>
+                    @error('statusReason')
+                        <small class="text-danger">{{ $message }}</small>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {{ __('Cancel') }}
+                </button>
+                <button type="button" class="btn btn-warning" wire:click="submitStatusUpdate">
+                    <i class="bi bi-send me-1"></i>
+                    {{ __('Submit') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('styles')
     <style>
         /* Main Container */
@@ -470,6 +515,17 @@
 @push('scripts')
     <script>
         document.addEventListener('livewire:init', () => {
+            const statusModalElement = document.getElementById('statusModal');
+            const statusModal = statusModalElement ? new bootstrap.Modal(statusModalElement) : null;
+
+            Livewire.on('open-status-modal', () => {
+                statusModal?.show();
+            });
+
+            Livewire.on('close-status-modal', () => {
+                statusModal?.hide();
+            });
+
             setTimeout(() => {
                 if (window.Echo && window.Echo.socketId) {
                     const socketId = window.Echo.socketId();
