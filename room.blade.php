@@ -195,7 +195,7 @@
                             </div>
                         @empty
                             <div class="system-message mt-3">
-                                <i class="bi bi-chat-dots"></i>
+                                <i class="bi bi-chat-dots px-2"></i>
                                 {{ __('No messages yet. Start the conversation!') }}
                             </div>
                         @endforelse
@@ -215,7 +215,8 @@
 
                                         <p class="mb-1">
                                             This ticket has been
-                                            <strong>{{ $chatRoom->cstatus === 'resolved' ? 'resolved' : 'closed' }}</strong>
+                                            {{ $isAutoClosedPending ? 'automatically' : '' }}
+                                            <strong>{{ $chatRoom->cstatus === 'resolved' ? 'resolved' : 'closed' }}</strong> 
                                             by {{ $isAutoClosedPending ? 'System' : ($chatRoom->closedBy->name ?? 'System') }}.
                                         </p>
 
