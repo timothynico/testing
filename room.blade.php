@@ -100,7 +100,7 @@
                     <div class="chat-header border-bottom p-3 bg-light">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="mb-0">{{ $chatRoom->creference }} - {{ ucfirst($chatRoom->ctype) }}</h6>
+                                <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
                                 <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
                             </div>
                             <div>
@@ -108,7 +108,7 @@
                                     @if ($chatRoom->cstatus === 'in_progress')
                                         bg-warning
                                     @elseif ($chatRoom->cstatus === 'resolved')
-                                        bg-info
+                                        bg-success
                                     @elseif ($chatRoom->cstatus === 'closed')
                                         bg-secondary
                                     @endif
@@ -151,7 +151,20 @@
                                         </span>
                                     </div>
                                     <div class="message-bubble">
-                                        <p class="mb-0">{{ $message['ctext'] }}</p>
+                                        @if (!empty($message['cattachment_path']))
+                                            <img src="{{ asset('storage/' . $message['cattachment_path']) }}"
+                                                class="img-fluid rounded"
+                                                style="max-width: 250px; cursor:pointer;"
+                                                onclick="window.open(this.src)">
+                                        @endif
+
+                                        @if(!empty($message['cattachment_path']) && !empty($message['ctext']))
+                                            <p class="mt-0"></p>
+                                        @endif
+
+                                        @if (!empty($message['ctext']))
+                                            <p class="mb-0">{{ $message['ctext'] }}</p>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -161,15 +174,71 @@
                                 {{ __('No messages yet. Start the conversation!') }}
                             </div>
                         @endforelse
+                        {{-- System Footer --}}
+                        @if(in_array($chatRoom->cstatus, ['resolved', 'closed']))
+                            <div class="system-message mt-3">
+                                <div class="system-card border-warning">
+                                    <i class="bi bi-check-circle"></i>
+                                    <div>
+                                        <strong>
+                                            @if($chatRoom->cstatus === 'resolved')
+                                                Complaint Ticket Resolved
+                                            @else
+                                                Complaint Ticket Closed
+                                            @endif
+                                        </strong>
+
+                                        <p class="mb-1">
+                                            This ticket has been 
+                                            <strong>{{ $chatRoom->cstatus }}</strong> 
+                                            by {{ $chatRoom->closedBy->name ?? 'System' }}.
+                                        </p>
+
+                                        @if(!empty($chatRoom->creason))
+                                            <div class="mt-1">
+                                                <small class="text-muted">
+                                                    Reason: {{ $chatRoom->creason }}
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- Chat Input --}}
                     <div class="chat-input border-top p-3">
-                        <form wire:submit.prevent="sendMessage">
+                        <form wire:submit.prevent="sendMessage" enctype="multipart/form-data">
+                            {{-- Preview Image --}}
+                            @if ($attachment)
+                                <div class="mb-2">
+                                    <img src="{{ $attachment->temporaryUrl() }}"
+                                        class="img-thumbnail"
+                                        style="max-height:150px;">
+                                </div>
+                            @endif
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" placeholder="{{ __('Type a message...') }}"
-                                    wire:model="newMessage" autocomplete="off"
-                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
+
+                                {{-- Upload Button --}}
+                                <label class="btn btn-outline-secondary mb-0">
+                                    <i class="bi bi-image"></i>
+                                    <input type="file"
+                                        wire:model="attachment"
+                                        accept="image/*"
+                                        hidden
+                                        {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+                                </label>
+
+                                {{-- Text Input --}}
+                                <input type="text" 
+                                    class="form-control"
+                                    placeholder="{{ __('Type a message...') }}"
+                                    wire:model="newMessage"
+                                    autocomplete="off"
+                                    {{ $chatRoom->cstatus === 'closed' ? 'disabled' : '' }}>
+
+                                {{-- Send Button --}}
                                 <button class="btn btn-success" type="submit"
                                     {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
                                     <i class="bi bi-send-fill"></i> {{ __('Send') }}
