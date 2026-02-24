@@ -15,6 +15,8 @@ class Room extends Component
     public $chatRoom = null;
     public $messages = [];
     public $newMessage = '';
+    public $pendingStatus = null;
+    public $statusReason = '';
 
     public function mount()
     {
@@ -140,6 +142,53 @@ class Room extends Component
 
     public function updateStatus($status)
     {
-        //
+        if (!$this->chatRoomId) {
+            return;
+        }
+
+        if (!in_array($status, ['resolved', 'closed'], true)) {
+            return;
+        }
+
+        $this->chatRoom = ChatRoom::findOrFail($this->chatRoomId);
+
+        if ($status === 'resolved' && in_array($this->chatRoom->cstatus, ['resolved', 'closed'], true)) {
+            return;
+        }
+
+        if ($status === 'closed' && $this->chatRoom->cstatus === 'closed') {
+            return;
+        }
+
+        $this->pendingStatus = $status;
+        $this->statusReason = '';
+
+        $this->dispatch('open-status-modal');
+    }
+
+    public function submitStatusUpdate()
+    {
+        $this->validate([
+            'pendingStatus' => 'required|in:resolved,closed',
+            'statusReason' => 'required|string|max:1000',
+        ]);
+
+        if (!$this->chatRoomId) {
+            return;
+        }
+
+        $chatRoom = ChatRoom::findOrFail($this->chatRoomId);
+
+        $chatRoom->update([
+            'cstatus' => $this->pendingStatus,
+            'nidclose' => Auth::id(),
+            'reason' => $this->statusReason,
+        ]);
+
+        $this->chatRoom = $chatRoom->fresh('applicant');
+        $this->pendingStatus = null;
+        $this->statusReason = '';
+
+        $this->dispatch('close-status-modal');
     }
 }
