@@ -738,38 +738,44 @@
                 });
             }
 
-            // Scroll to first unread message on first render per chatroom
-            let lastScrolledChatroomId = null;
-
-            const scrollToUnreadOrBottom = () => {
-                const chatMessages = document.getElementById('chatMessages');
-                if (!chatMessages) {
-                    return;
-                }
-
-                const currentChatroomId = @this.get('chatRoomId');
-
-                if (!currentChatroomId || lastScrolledChatroomId === currentChatroomId) {
-                    return;
-                }
-
-                const firstUnreadMessageId = chatMessages.dataset.firstUnreadMessageId;
-                const unreadMessage = firstUnreadMessageId
-                    ? chatMessages.querySelector(`[data-message-id="${firstUnreadMessageId}"]`)
-                    : null;
-
-                if (unreadMessage) {
-                    unreadMessage.scrollIntoView({ block: 'start' });
-                    chatMessages.scrollTop = Math.max(chatMessages.scrollTop - 16, 0);
-                } else {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }
-
-                lastScrolledChatroomId = currentChatroomId;
+            // Keep chat pinned to the latest message on first open and after sending outgoing messages
+            const chatState = {
+                initializedChatrooms: new Set(),
+                messageCountByChatroom: {},
             };
 
-            Livewire.hook('morph.updated', scrollToUnreadOrBottom);
-            scrollToUnreadOrBottom();
+            const scrollToBottom = (chatMessages) => {
+                requestAnimationFrame(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                });
+            };
+
+            const syncChatScrollPosition = () => {
+                const chatMessages = document.getElementById('chatMessages');
+                const currentChatroomId = @this.get('chatRoomId');
+
+                if (!chatMessages || !currentChatroomId) {
+                    return;
+                }
+
+                const messages = chatMessages.querySelectorAll('.message');
+                const latestMessage = messages[messages.length - 1];
+                const messageCount = messages.length;
+                const previousCount = chatState.messageCountByChatroom[currentChatroomId] ?? 0;
+                const isFirstRenderInChatroom = !chatState.initializedChatrooms.has(currentChatroomId);
+                const hasNewMessage = messageCount > previousCount;
+                const isLatestMessageOutgoing = latestMessage?.classList.contains('outgoing');
+
+                if (isFirstRenderInChatroom || (hasNewMessage && isLatestMessageOutgoing)) {
+                    scrollToBottom(chatMessages);
+                    chatState.initializedChatrooms.add(currentChatroomId);
+                }
+
+                chatState.messageCountByChatroom[currentChatroomId] = messageCount;
+            };
+
+            Livewire.hook('morph.updated', syncChatScrollPosition);
+            syncChatScrollPosition();
 
             // Optional Echo listener for instant updates when available
             let activeChatroomChannel = null;
