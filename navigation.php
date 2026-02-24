@@ -8,6 +8,13 @@ NAVIGATION COMPONENT
 ============================================================================ --}}
 
 @php
+    $chatRoomIds = \App\Models\ChatRoomDetail::query()
+        ->where('niduser', Auth::id())
+        ->pluck('nidchatroom')
+        ->map(fn($id) => (int) $id)
+        ->values()
+        ->all();
+
     $isNetwork = request()->routeIs('agreement.*');
     $isTransaction = request()->routeIs('delivery.*');
     $isFinance = request()->routeIs('finance.*', 'invoice.*');
@@ -464,7 +471,7 @@ NAVIGATION COMPONENT
 
     {{-- Feedback --}}
     <li class="nav-item">
-        <a class="nav-link {{ request()->routeIs('feedback.*') ? 'active' : '' }}"
+        <a class="nav-link js-feedback-link {{ request()->routeIs('feedback.*') ? 'active' : '' }}"
             href="{{ route('chatrooms.index') }}" data-keywords="help center support faq glossary guide">
             <i class="bi bi-chat-dots"></i>{{ __('Feedback') }}
         </a>
@@ -542,6 +549,14 @@ NAVIGATION COMPONENT
             z-index: 1;
             font-weight: 600;
             color: #212529;
+        }
+
+        .js-feedback-link.feedback-alert {
+            color: #dc3545 !important;
+        }
+
+        .js-feedback-link.feedback-alert i {
+            color: #dc3545 !important;
         }
 
         /* Mark all as read link */
@@ -678,9 +693,34 @@ NAVIGATION COMPONENT
             document.addEventListener('DOMContentLoaded', function() {
                 initializeSharedMenus();
 
+                setupFeedbackAlertListener();
+
                 const isMobile = window.innerWidth < 992;
                 isMobile ? initMobileNav() : initDesktopNav();
             });
+
+            function setupFeedbackAlertListener() {
+                if (!window.Echo) {
+                    return;
+                }
+
+                const chatRoomIds = @json($chatRoomIds);
+
+                if (!Array.isArray(chatRoomIds) || !chatRoomIds.length) {
+                    return;
+                }
+
+                const setFeedbackAlert = () => {
+                    document.querySelectorAll('.js-feedback-link').forEach((feedbackLink) => {
+                        feedbackLink.classList.add('feedback-alert');
+                    });
+                };
+
+                chatRoomIds.forEach((roomId) => {
+                    window.Echo.private(`chatroom.${roomId}`)
+                        .listen('ChatMessageSent', setFeedbackAlert);
+                });
+            }
 
             // ========================================================================
             // SHARED MENU CLONING
