@@ -18,6 +18,9 @@ class Room extends Component
     public $pendingStatus = null;
     public $statusReason = '';
     public $idClose = null;
+    public $search = '';
+    public $filterMenu = '';
+    public $filterStatus = '';
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -68,7 +71,7 @@ class Room extends Component
 
         $message = Message::create([
             'nidchatroom' => $this->chatRoomId,
-            'niduser' => Auth::id(),
+            'niduser' => Auth::user()->id,
             'ctext' => $this->newMessage,
         ]);
 
@@ -76,7 +79,6 @@ class Room extends Component
 
         $this->newMessage = '';
 
-        // langsung append tanpa reload full
         $this->messages[] = [
             'ctext' => $message->ctext,
             'created_at' => $message->created_at,
@@ -84,17 +86,6 @@ class Room extends Component
             'user' => [
                 'name' => Auth::user()->name
             ]
-        ];
-    }
-
-    public function getListeners()
-    {
-        if (!$this->chatRoomId) {
-            return [];
-        }
-
-        return [
-            "echo-private:chatroom.{$this->chatRoomId},ChatMessageSent" => 'messageReceived',
         ];
     }
 
@@ -125,22 +116,51 @@ class Room extends Component
 
     public function render()
     {
-        $chatRoomList = ChatRoom::whereHas('members', function ($query) {
-                $query->where('niduser', Auth::user()->id);
+        $chatRoomList = ChatRoom::query()
+            ->whereHas('members', function ($query) {
+                $query->where('niduser', Auth::id());
             })
-            ->with(['applicant', 'messages' => function ($q) {
+
+            // Searchbar query filter
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('creference', 'like', '%' . $this->search . '%')
+                    ->orWhereHas('applicant', function ($q2) {
+                        $q2->where('name', 'like', '%' . $this->search . '%')
+                            ->orWhereHas('customer', function ($q3) {
+                                $q3->where('cnmcust', 'like', '%' . $this->search . '%');
+                            });
+                    });
+                });
+            })
+
+            // Menu query filter
+            ->when($this->filterMenu, function ($query) {
+                $query->where('ctype', $this->filterMenu);
+            })
+
+            // Status query filter
+            ->when($this->filterStatus, function ($query) {
+                $query->where('cstatus', $this->filterStatus);
+            })
+
+            ->with(['applicant.customer', 'messages' => function ($q) {
                 $q->latest()->limit(1);
             }])
+
             ->latest()
             ->get()
+
             ->map(function ($room) {
                 return [
                     'nidchatroom' => $room->nidchatroom,
                     'creference' => $room->creference,
                     'ctype' => $room->ctype,
                     'cstatus' => $room->cstatus,
+                    'cissue' => $room->cissue,
                     'cdescription' => $room->cdescription,
                     'applicant' => $room->applicant,
+                    'customer' => $room->applicant->customer,
                     'last_message_at' => $room->messages->first()?->created_at,
                     'unread_count' => $room->unreadCountFor(Auth::id()),
                 ];
