@@ -29,7 +29,7 @@ class Room extends Component
         }
 
         return (int) Auth::id() === (int) $chatRoom->applicant->id
-            || $chatRoom->applicant->role === 'admin';
+            || Auth::user()?->role === 'admin';
     }
 
     public function mount()
