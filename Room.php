@@ -25,6 +25,7 @@ class Room extends Component
     public $statusReason = '';
     public $idClose = null;
     public $attachment;
+    public $firstUnreadMessageId = null;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -44,29 +45,7 @@ class Room extends Component
     public function selectChatRoom($id)
     {
         $this->chatRoomId = $id;
-
         $this->refreshChatState();
-        $this->chatRoom = ChatRoom::with('applicant')
-            ->findOrFail($id);
-
-        $this->messages = Message::with('sender')
-            ->where('nidchatroom', $id)
-            ->orderBy('created_at')
-            ->get()
-            ->map(function ($msg) {
-                return [
-                    'ctext' => $msg->ctext,
-                    'cattachment_path' => $msg->cattachment_path,
-                    'created_at' => $msg->created_at,
-                    'niduser' => $msg->niduser,
-                    'user' => [
-                        'name' => $msg->sender->name ?? 'Unknown'
-                    ]
-                ];
-            })
-            ->toArray();
-
-        $this->markAsRead();
     }
 
     public function sendMessage()
@@ -101,15 +80,6 @@ class Room extends Component
         broadcast(new ChatMessageSent($message))->toOthers();
 
         $this->refreshChatState();
-        $this->messages[] = [
-            'ctext' => $message->ctext,
-            'created_at' => $message->created_at,
-            'niduser' => $message->niduser,
-            'cattachment_path' => $path,
-            'user' => [
-                'name' => Auth::user()->name
-            ]
-        ];
 
         $this->reset(['newMessage', 'attachment']);
     }
@@ -139,11 +109,24 @@ class Room extends Component
             $this->chatRoomId = null;
             $this->chatRoom = null;
             $this->messages = [];
+            $this->firstUnreadMessageId = null;
 
             return;
         }
 
         $this->chatRoom = $chatRoom;
+
+        $lastReadMessageId = ChatRoomDetail::where('nidchatroom', $this->chatRoomId)
+            ->where('niduser', Auth::id())
+            ->value('nidlastreadmessage');
+
+        $this->firstUnreadMessageId = Message::query()
+            ->where('nidchatroom', $this->chatRoomId)
+            ->when($lastReadMessageId, function ($query) use ($lastReadMessageId) {
+                $query->where('nidmessage', '>', $lastReadMessageId);
+            })
+            ->orderBy('nidmessage')
+            ->value('nidmessage');
 
         $this->messages = Message::with('sender')
             ->where('nidchatroom', $this->chatRoomId)
@@ -151,7 +134,9 @@ class Room extends Component
             ->get()
             ->map(function ($msg) {
                 return [
+                    'nidmessage' => $msg->nidmessage,
                     'ctext' => $msg->ctext,
+                    'cattachment_path' => $msg->cattachment_path,
                     'created_at' => $msg->created_at,
                     'niduser' => $msg->niduser,
                     'user' => [
