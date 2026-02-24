@@ -736,14 +736,21 @@
                 });
             }
 
-            // Auto scroll to bottom of messages
+            // Auto scroll to bottom of messages only once (initial load)
+            let hasAutoScrolledOnInitialLoad = false;
+
             Livewire.hook('morph.updated', ({
                 component,
                 cleanup
             }) => {
+                if (hasAutoScrolledOnInitialLoad) {
+                    return;
+                }
+
                 const chatMessages = document.getElementById('chatMessages');
                 if (chatMessages) {
                     chatMessages.scrollTop = chatMessages.scrollHeight;
+                    hasAutoScrolledOnInitialLoad = true;
                 }
             });
 
