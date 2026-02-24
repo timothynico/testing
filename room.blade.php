@@ -152,7 +152,7 @@
                                         <i class="bi bi-check-circle"></i> {{ __('Mark as Resolved') }}
                                     </button>
                                 @endif
-                                @if ($chatRoom->cstatus !== 'closed')
+                                @if (!in_array($chatRoom->cstatus, ['resolved', 'closed'], true))
                                     <button class="btn btn-sm btn-danger" type="button"
                                         wire:click="updateStatus('closed')">
                                         <i class="bi bi-x-circle"></i> {{ __('Close Conversation') }}
@@ -203,7 +203,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     {{ __('Cancel') }}
                 </button>
-                <button type="button" class="btn btn-warning" wire:click="submitStatusUpdate">
+                <button type="button" class="btn btn-warning" wire:click="updateStatus">
                     <i class="bi bi-send me-1"></i>
                     {{ __('Submit') }}
                 </button>
