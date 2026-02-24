@@ -129,7 +129,8 @@
                     @endphp
 
                     {{-- Chat Messages --}}
-                    <div class="chat-messages" id="chatMessages">
+                    <div class="chat-messages" id="chatMessages"
+                        data-first-unread-message-id="{{ $firstUnreadMessageId }}">
                         {{-- System Header --}}
                         <div class="system-message">
                             <div class="system-card">
@@ -167,7 +168,8 @@
 
                         {{-- Messages --}}
                         @forelse ($messages as $message)
-                            <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}">
+                            <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}"
+                                data-message-id="{{ $message['nidmessage'] ?? '' }}">
                                 <div class="message-content">
                                     <div class="message-header">
                                         <span class="message-sender">{{ $message['user']['name'] }}</span>
@@ -736,23 +738,38 @@
                 });
             }
 
-            // Auto scroll to bottom of messages only once (initial load)
-            let hasAutoScrolledOnInitialLoad = false;
+            // Scroll to first unread message on first render per chatroom
+            let lastScrolledChatroomId = null;
 
-            Livewire.hook('morph.updated', ({
-                component,
-                cleanup
-            }) => {
-                if (hasAutoScrolledOnInitialLoad) {
+            const scrollToUnreadOrBottom = () => {
+                const chatMessages = document.getElementById('chatMessages');
+                if (!chatMessages) {
                     return;
                 }
 
-                const chatMessages = document.getElementById('chatMessages');
-                if (chatMessages) {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    hasAutoScrolledOnInitialLoad = true;
+                const currentChatroomId = @this.get('chatRoomId');
+
+                if (!currentChatroomId || lastScrolledChatroomId === currentChatroomId) {
+                    return;
                 }
-            });
+
+                const firstUnreadMessageId = chatMessages.dataset.firstUnreadMessageId;
+                const unreadMessage = firstUnreadMessageId
+                    ? chatMessages.querySelector(`[data-message-id="${firstUnreadMessageId}"]`)
+                    : null;
+
+                if (unreadMessage) {
+                    unreadMessage.scrollIntoView({ block: 'start' });
+                    chatMessages.scrollTop = Math.max(chatMessages.scrollTop - 16, 0);
+                } else {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+
+                lastScrolledChatroomId = currentChatroomId;
+            };
+
+            Livewire.hook('morph.updated', scrollToUnreadOrBottom);
+            scrollToUnreadOrBottom();
 
             // Optional Echo listener for instant updates when available
             let activeChatroomChannel = null;
