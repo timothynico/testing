@@ -551,12 +551,32 @@ NAVIGATION COMPONENT
             color: #212529;
         }
 
-        .js-feedback-link.feedback-alert {
-            color: #dc3545 !important;
+        .js-feedback-link {
+            position: relative;
         }
 
-        .js-feedback-link.feedback-alert i {
-            color: #dc3545 !important;
+        .js-feedback-link.feedback-alert::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background-color: #dc3545; 
+            border-radius: 50%;
+            animation: pulseDot 1.8s infinite;
+        }
+
+        @keyframes pulseDot {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220,53,69,0.5); 
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(220,53,69,0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220,53,69,0);
+            }
         }
 
         /* Mark all as read link */
