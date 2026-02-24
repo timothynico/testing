@@ -100,8 +100,8 @@ class Room extends Component
     public function markAsRead()
     {
         $lastMessageId = Message::where('nidchatroom', $this->chatRoomId)
-            ->latest('nidchatmessage')
-            ->value('nidchatmessage');
+            ->latest('nidmessage')
+            ->value('nidmessage');
 
         ChatRoomDetail::where('nidchatroom', $this->chatRoomId)
             ->where('niduser', Auth::id())
@@ -133,10 +133,13 @@ class Room extends Component
                 ];
             });
 
-        dump($chatRoomList);
-
         return view('livewire.chat.room', [
             'chatRoomList' => $chatRoomList,
-        ]);
+        ])->layout('layouts.app');
+    }
+
+    public function updateStatus($status)
+    {
+        //
     }
 }
