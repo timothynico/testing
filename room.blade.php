@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.3s="refreshChatState">
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
@@ -646,46 +646,34 @@
                 }
             });
 
-            // Listen for feedback selection to setup Echo listener
-            let echoChannel = null;
+            // Optional Echo listener for instant updates when available
+            let activeChatroomChannel = null;
 
-            Livewire.on('feedback-selected', (event) => {
-                const feedbackId = event.feedbackId;
-
-                // Check if Echo is available
-                if (!window.Echo) {
-                    console.warn('⚠️ Echo not available, real-time updates disabled');
+            const subscribeToChatroom = () => {
+                if (!window.Echo || !@this.get('chatRoomId')) {
                     return;
                 }
 
-                // Leave previous channel if exists
-                if (echoChannel) {
-                    console.log('Leaving channel:', `feedback.${echoChannel}`);
-                    window.Echo.leave(`feedback.${echoChannel}`);
+                const currentChatroomId = @this.get('chatRoomId');
+
+                if (activeChatroomChannel === currentChatroomId) {
+                    return;
                 }
 
-                // Join new feedback channel
-                echoChannel = feedbackId;
-                console.log('Joining channel:', `feedback.${feedbackId}`);
+                if (activeChatroomChannel) {
+                    window.Echo.leave(`private-chatroom.${activeChatroomChannel}`);
+                }
 
-                window.Echo.private(`feedback.${feedbackId}`)
-                    .subscribed(() => {
-                        console.log('✅ Successfully subscribed to channel:', `feedback.${feedbackId}`);
-                    })
-                    .listen('MessageSent', (e) => {
-                        console.log('🔔 New message received:', e);
-                        // Call Livewire method to reload messages
-                        @this.call('onMessageReceived');
-                    })
-                    .error((error) => {
-                        console.error('❌ Echo error:', error);
+                activeChatroomChannel = currentChatroomId;
+
+                window.Echo.private(`chatroom.${currentChatroomId}`)
+                    .listen('ChatMessageSent', () => {
+                        @this.call('refreshChatState');
                     });
-            });
+            };
 
-            window.Echo.private(`chatroom.${feedbackId}`)
-                .listen('ChatMessageSent', (e) => {
-                    @this.call('messageReceived', e);
-                });
+            subscribeToChatroom();
+            Livewire.hook('morph.updated', subscribeToChatroom);
         });
     </script>
 @endpush

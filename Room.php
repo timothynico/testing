@@ -41,11 +41,64 @@ class Room extends Component
     {
         $this->chatRoomId = $id;
 
-        $this->chatRoom = ChatRoom::with('applicant')
-            ->findOrFail($id);
+        $this->refreshChatState();
+    }
+
+    public function sendMessage()
+    {
+        if (!$this->chatRoomId) {
+            return;
+        }
+
+        $this->validate([
+            'newMessage' => 'required|string|max:5000'
+        ]);
+
+        $message = Message::create([
+            'nidchatroom' => $this->chatRoomId,
+            'niduser' => Auth::user()->id,
+            'ctext' => $this->newMessage,
+        ]);
+
+        broadcast(new ChatMessageSent($message))->toOthers();
+
+        $this->newMessage = '';
+
+        $this->refreshChatState();
+    }
+
+    public function messageReceived($event)
+    {
+        $this->messages[] = [
+            'ctext' => $event['ctext'],
+            'created_at' => $event['created_at'],
+            'niduser' => $event['niduser'],
+            'user' => [
+                'name' => $event['cusername']
+            ]
+        ];
+    }
+
+    public function refreshChatState()
+    {
+        if (!$this->chatRoomId) {
+            return;
+        }
+
+        $chatRoom = ChatRoom::with('applicant.customer')->find($this->chatRoomId);
+
+        if (!$chatRoom) {
+            $this->chatRoomId = null;
+            $this->chatRoom = null;
+            $this->messages = [];
+
+            return;
+        }
+
+        $this->chatRoom = $chatRoom;
 
         $this->messages = Message::with('sender')
-            ->where('nidchatroom', $id)
+            ->where('nidchatroom', $this->chatRoomId)
             ->orderBy('created_at')
             ->get()
             ->map(function ($msg) {
@@ -61,44 +114,6 @@ class Room extends Component
             ->toArray();
 
         $this->markAsRead();
-    }
-
-    public function sendMessage()
-    {
-        $this->validate([
-            'newMessage' => 'required|string|max:5000'
-        ]);
-
-        $message = Message::create([
-            'nidchatroom' => $this->chatRoomId,
-            'niduser' => Auth::user()->id,
-            'ctext' => $this->newMessage,
-        ]);
-
-        broadcast(new ChatMessageSent($message))->toOthers();
-
-        $this->newMessage = '';
-
-        $this->messages[] = [
-            'ctext' => $message->ctext,
-            'created_at' => $message->created_at,
-            'niduser' => $message->niduser,
-            'user' => [
-                'name' => Auth::user()->name
-            ]
-        ];
-    }
-
-    public function messageReceived($event)
-    {
-        $this->messages[] = [
-            'ctext' => $event['ctext'],
-            'created_at' => $event['created_at'],
-            'niduser' => $event['niduser'],
-            'user' => [
-                'name' => $event['cusername']
-            ]
-        ];
     }
 
     public function markAsRead()
@@ -221,7 +236,7 @@ class Room extends Component
             'creason' => $this->statusReason,
         ]);
 
-        $this->chatRoom = $chatRoom->fresh('applicant');
+        $this->refreshChatState();
         $this->pendingStatus = null;
         $this->statusReason = '';
 
