@@ -1,3 +1,4 @@
+<div>
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
@@ -210,7 +211,7 @@
         </div>
     </div>
 </div>
-
+</div>
 @push('styles')
     <style>
         /* Main Container */
