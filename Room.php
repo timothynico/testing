@@ -8,19 +8,23 @@ use App\Models\Message;
 use App\Models\ChatRoomDetail;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Room extends Component
-{
+{   
+    use WithFileUploads;
+
     public $chatRoomId = null;
     public $chatRoom = null;
     public $messages = [];
     public $newMessage = '';
-    public $pendingStatus = null;
-    public $statusReason = '';
-    public $idClose = null;
     public $search = '';
     public $filterMenu = '';
     public $filterStatus = '';
+    public $pendingStatus = null;
+    public $statusReason = '';
+    public $idClose = null;
+    public $attachment;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -42,6 +46,27 @@ class Room extends Component
         $this->chatRoomId = $id;
 
         $this->refreshChatState();
+        $this->chatRoom = ChatRoom::with('applicant')
+            ->findOrFail($id);
+
+        $this->messages = Message::with('sender')
+            ->where('nidchatroom', $id)
+            ->orderBy('created_at')
+            ->get()
+            ->map(function ($msg) {
+                return [
+                    'ctext' => $msg->ctext,
+                    'cattachment_path' => $msg->cattachment_path,
+                    'created_at' => $msg->created_at,
+                    'niduser' => $msg->niduser,
+                    'user' => [
+                        'name' => $msg->sender->name ?? 'Unknown'
+                    ]
+                ];
+            })
+            ->toArray();
+
+        $this->markAsRead();
     }
 
     public function sendMessage()
@@ -51,26 +76,49 @@ class Room extends Component
         }
 
         $this->validate([
-            'newMessage' => 'required|string|max:5000'
+            'newMessage' => 'nullable|string|max:5000',
+            'attachment' => 'nullable|image|max:2048' // max 2MB
         ]);
+
+        // Return if both emptys
+        if (!$this->newMessage && !$this->attachment) {
+            return;
+        }
+
+        $path = null;
+
+        if ($this->attachment) {
+            $path = $this->attachment->store('chat-attachments', 'public');
+        }
 
         $message = Message::create([
             'nidchatroom' => $this->chatRoomId,
-            'niduser' => Auth::user()->id,
+            'niduser' => Auth::id(),
             'ctext' => $this->newMessage,
+            'cattachment_path' => $path,
         ]);
 
         broadcast(new ChatMessageSent($message))->toOthers();
 
-        $this->newMessage = '';
-
         $this->refreshChatState();
+        $this->messages[] = [
+            'ctext' => $message->ctext,
+            'created_at' => $message->created_at,
+            'niduser' => $message->niduser,
+            'cattachment_path' => $path,
+            'user' => [
+                'name' => Auth::user()->name
+            ]
+        ];
+
+        $this->reset(['newMessage', 'attachment']);
     }
 
     public function messageReceived($event)
     {
         $this->messages[] = [
             'ctext' => $event['ctext'],
+            'cattachment_path' => $event['cattachment_path'],
             'created_at' => $event['created_at'],
             'niduser' => $event['niduser'],
             'user' => [
@@ -175,6 +223,8 @@ class Room extends Component
                     'cissue' => $room->cissue,
                     'cdescription' => $room->cdescription,
                     'applicant' => $room->applicant,
+                    'closedBy' => $room->closedBy,
+                    'creason' => $room->creason,
                     'customer' => $room->applicant->customer,
                     'last_message_at' => $room->messages->first()?->created_at,
                     'unread_count' => $room->unreadCountFor(Auth::id()),
