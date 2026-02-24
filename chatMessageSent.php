@@ -35,7 +35,13 @@ class ChatMessageSent implements ShouldBroadcastNow
             'niduser' => $this->message->niduser,
             'cusername' => $this->message->user->name ?? 'Unknown',
             'ctext' => $this->message->ctext,
+            'cattachment_path' => $this->message->cattachment_path,
             'created_at' => $this->message->created_at->toISOString(),
         ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'chat.message.sent';
     }
 }

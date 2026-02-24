@@ -718,7 +718,7 @@ NAVIGATION COMPONENT
 
                 chatRoomIds.forEach((roomId) => {
                     window.Echo.private(`chatroom.${roomId}`)
-                        .listen('ChatMessageSent', setFeedbackAlert);
+                        .listen('.chat.message.sent', setFeedbackAlert);
                 });
             }
 
