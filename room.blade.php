@@ -119,6 +119,15 @@
                         </div>
                     </div>
 
+                    @php
+                        $autoCloseAt = $chatRoom->auto_close_at
+                            ? \Carbon\Carbon::parse($chatRoom->auto_close_at)
+                            : null;
+                        $isAutoClosedByTime = $autoCloseAt && now()->greaterThanOrEqualTo($autoCloseAt);
+                        $isAutoClosedPending = $isAutoClosedByTime && $chatRoom->cstatus === 'in_progress';
+                        $isTicketLocked = in_array($chatRoom->cstatus, ['resolved', 'closed'], true) || $isAutoClosedPending;
+                    @endphp
+
                     {{-- Chat Messages --}}
                     <div class="chat-messages" id="chatMessages">
                         {{-- System Header --}}
@@ -141,7 +150,7 @@
                                 </div>
                             </div>
                         </div>
-                        @if($chatRoom->auto_close_at && $chatRoom->cstatus === 'in_progress')
+                        @if($chatRoom->auto_close_at && $chatRoom->cstatus === 'in_progress' && !$isAutoClosedByTime)
                             <div class="system-message mt-2">
                                 <div class="system-card border-info">
                                     <i class="bi bi-info-circle"></i>
@@ -191,7 +200,7 @@
                             </div>
                         @endforelse
                         {{-- System Footer --}}
-                        @if(in_array($chatRoom->cstatus, ['resolved', 'closed']))
+                        @if(in_array($chatRoom->cstatus, ['resolved', 'closed']) || $isAutoClosedPending)
                             <div class="system-message mt-3">
                                 <div class="system-card border-warning">
                                     <i class="bi bi-check-circle"></i>
@@ -205,12 +214,18 @@
                                         </strong>
 
                                         <p class="mb-1">
-                                            This ticket has been 
-                                            <strong>{{ $chatRoom->cstatus }}</strong> 
-                                            by {{ $chatRoom->closedBy->name ?? 'System' }}.
+                                            This ticket has been
+                                            <strong>{{ $chatRoom->cstatus === 'resolved' ? 'resolved' : 'closed' }}</strong>
+                                            by {{ $isAutoClosedPending ? 'System' : ($chatRoom->closedBy->name ?? 'System') }}.
                                         </p>
 
-                                        @if(!empty($chatRoom->creason))
+                                        @if($isAutoClosedPending)
+                                            <div class="mt-1">
+                                                <small class="text-muted">
+                                                    Reason: Closed by system because there is no active activity in 2 days.
+                                                </small>
+                                            </div>
+                                        @elseif(!empty($chatRoom->creason))
                                             <div class="mt-1">
                                                 <small class="text-muted">
                                                     Reason: {{ $chatRoom->creason }}
@@ -243,7 +258,7 @@
                                         wire:model="attachment"
                                         accept="image/*"
                                         hidden
-                                        {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
+                                        {{ $isTicketLocked ? 'disabled' : '' }}>
                                 </label>
 
                                 {{-- Text Input --}}
@@ -252,11 +267,11 @@
                                     placeholder="{{ __('Type a message...') }}"
                                     wire:model="newMessage"
                                     autocomplete="off"
-                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
+                                    {{ $isTicketLocked ? 'disabled' : '' }}>
 
                                 {{-- Send Button --}}
                                 <button class="btn btn-success" type="submit"
-                                    {{ $chatRoom->cstatus == 'closed' || $chatRoom->cstatus == 'resolved' ? 'disabled' : '' }}>
+                                    {{ $isTicketLocked ? 'disabled' : '' }}>
                                     <i class="bi bi-send-fill"></i> {{ __('Send') }}
                                 </button>
                             </div>
