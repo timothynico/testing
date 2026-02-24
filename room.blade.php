@@ -798,7 +798,7 @@
                 activeChatroomChannel = currentChatroomId;
 
                 window.Echo.private(`chatroom.${currentChatroomId}`)
-                    .listen('ChatMessageSent', () => {
+                    .listen('.chat.message.sent', () => {
                         @this.call('refreshChatState');
                     });
             };
