@@ -17,6 +17,7 @@ class Room extends Component
     public $newMessage = '';
     public $pendingStatus = null;
     public $statusReason = '';
+    public $idClose = null;
 
     public function mount()
     {
@@ -182,7 +183,7 @@ class Room extends Component
         $chatRoom->update([
             'cstatus' => $this->pendingStatus,
             'nidclose' => Auth::id(),
-            'reason' => $this->statusReason,
+            'creason' => $this->statusReason,
         ]);
 
         $this->chatRoom = $chatRoom->fresh('applicant');
