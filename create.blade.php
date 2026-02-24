@@ -850,7 +850,7 @@
                 const selectElement = type === 'from' ? fromAddressSelect : toAddressSelect;
                 selectElement.innerHTML = '<option value="">Loading...</option>';
                 const selectedFromAddressOption = fromAddressSelect.options[fromAddressSelect.selectedIndex];
-                const senderCity = selectedFromAddressOption?.dataset?.city || fromCity.value || '';
+                const senderCity = selectedFromAddressOption?.dataset?.city || fromCity.value || 'KABUPATEN SIDOARJO';
 
                 try {
                     const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(senderCity)}`);
