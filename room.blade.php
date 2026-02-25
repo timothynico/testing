@@ -915,12 +915,12 @@
                 }
 
                 if (activeChatroomChannel) {
-                    window.Echo.leave(`private-chatroom.${activeChatroomChannel}`);
+                    window.Echo.leave(`chatroom.${activeChatroomChannel}`);
                 }
 
                 activeChatroomChannel = currentChatroomId;
 
-                window.Echo.private(`chatroom.${currentChatroomId}`)
+                window.Echo.channel(`chatroom.${currentChatroomId}`)
                     .listen('.chat.message.sent', () => {
                         @this.call('refreshChatState');
                     });
