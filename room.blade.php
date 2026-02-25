@@ -297,13 +297,20 @@
                     <div class="chat-input border-top p-3">
                         <form wire:submit.prevent="sendMessage" enctype="multipart/form-data">
                             {{-- Preview Image --}}
-                            @if ($attachment)
-                                <div class="mb-2">
+                            <div class="mb-2" wire:loading wire:target="attachment">
+                                <div class="d-inline-flex align-items-center gap-2 text-muted small">
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span>{{ __('Loading photo preview...') }}</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-2" wire:loading.remove wire:target="attachment">
+                                @if ($attachment)
                                     <img src="{{ $attachment->temporaryUrl() }}"
                                         class="img-thumbnail"
                                         style="max-height:150px;">
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                             <div class="input-group mb-2">
 
                                 {{-- Upload Button --}}
