@@ -131,23 +131,58 @@
                     {{-- Chat Messages --}}
                     <div class="chat-messages" id="chatMessages"
                         data-first-unread-message-id="{{ $firstUnreadMessageId }}">
+                        @php
+                            $sortedMembers = $chatRoom->members->sortBy(function ($member) use ($chatRoom) {
+                                // Aplicant
+                                if ($member->id == $chatRoom->applicant->id) {
+                                    return 1;
+                                }
+
+                                // Admins
+                                if ($member->role === 'admin') {
+                                    return 2;
+                                }
+
+                                // Others
+                                return 3;
+                            });
+                        @endphp
                         {{-- System Header --}}
                         <div class="system-message">
                             <div class="system-card">
                                 <i class="bi bi-megaphone"></i>
                                 <div>
-                                    <strong>Complaint Ticket Created</strong>
-                                    <p class="mb-0">
+                                    <strong class="fs-8">Complaint Ticket Created</strong>
+                                    <p class="mb-0 fs-6">
                                         {{ $chatRoom->applicant->name ?? 'User' }}
                                         - {{ $chatRoom->applicant->customer->cnmcust ?? 'Customer' }}
-                                        on {{ \Carbon\Carbon::parse($chatRoom->created_at)->format('d M Y H:i') }}
+                                        on {{ \Carbon\Carbon::parse($chatRoom->created_at)->format('d/m/y H:i') }}
                                     </p>
-                                    <small class="text-muted">
+                                    <small class="text-muted fs-6">
                                         Ref: {{ $chatRoom->creference }}
                                     </small>
-                                    <div class="mt-1">
-                                        {{ $chatRoom->cdescription }}
-                                    </div>
+                                    <div class="members-label fs-6">Participants</div>
+                                    <ul class="members-list">
+                                        @foreach($sortedMembers as $member)
+                                            <li class="member-item">
+                                                <span class="member-name fs-6">
+                                                    {{ $member->name }}
+                                                    @if($member->customer?->cnmcust)
+                                                        - {{ $member->customer->cnmcust }}
+                                                    @endif
+                                                </span>
+                                                <span class="member-role fs-6">
+                                                    @if($member->id == $chatRoom->applicant->id)
+                                                        Applicant
+                                                    @elseif($member->role === 'admin')
+                                                        Admin
+                                                    @else
+                                                        Member
+                                                    @endif
+                                                </span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -156,51 +191,68 @@
                                 <div class="system-card border-info">
                                     <i class="bi bi-info-circle"></i>
                                     <div>
-                                        <small class="text-muted">
+                                        <small class="text-muted fs-6">
                                             This ticket will be automatically closed if there is no new message
                                             within <strong>2 days</strong> on
-                                            {{ \Carbon\Carbon::parse($chatRoom->auto_close_at)->format('d M Y H:i') }}.
+                                            {{ \Carbon\Carbon::parse($chatRoom->auto_close_at)->format('d/m/y H:i') }}.
                                         </small>
                                     </div>
                                 </div>
                             </div>
                         @endif
 
-                        {{-- Messages --}}
-                        @forelse ($messages as $message)
-                            <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}"
-                                data-message-id="{{ $message['nidmessage'] ?? '' }}">
-                                <div class="message-content">
-                                    <div class="message-header">
-                                        <span class="message-sender">{{ $message['user']['name'] }}</span>
-                                        <span class="message-time">
-                                            {{ \Carbon\Carbon::parse($message['created_at'])->format('H:i') }}
-                                        </span>
-                                    </div>
-                                    <div class="message-bubble">
-                                        @if (!empty($message['cattachment_path']))
-                                            <img src="{{ asset('storage/' . $message['cattachment_path']) }}"
-                                                class="img-fluid rounded"
-                                                style="max-width: 250px; cursor:pointer;"
-                                                onclick="window.open(this.src)">
-                                        @endif
+                        {{-- Messages grouped by date --}}
+                        @php
+                            $grouped = collect($messages)->groupBy(function($m) {
+                                return \Carbon\Carbon::parse($m['created_at'])->toDateString();
+                            });
+                        @endphp
 
-                                        @if(!empty($message['cattachment_path']) && !empty($message['ctext']))
-                                            <p class="mt-0"></p>
-                                        @endif
-
-                                        @if (!empty($message['ctext']))
-                                            <p class="mb-0">{{ $message['ctext'] }}</p>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        @empty
+                        @if($grouped->isEmpty())
                             <div class="system-message mt-3">
                                 <i class="bi bi-chat-dots px-2"></i>
                                 {{ __('No messages yet. Start the conversation!') }}
                             </div>
-                        @endforelse
+                        @else
+                            @foreach($grouped as $date => $msgs)
+                                @php
+                                    $dt = \Carbon\Carbon::parse($date);
+                                    $label = $dt->isToday() ? __('Today') : ($dt->isYesterday() ? __('Yesterday') : $dt->format('d/m/y'));
+                                @endphp
+
+                                <div class="date-separator my-2"><span>{{ $label }}</span></div>
+
+                                @foreach($msgs as $message)
+                                    <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}"
+                                        data-message-id="{{ $message['nidmessage'] ?? '' }}">
+                                        <div class="message-content">
+                                            <div class="message-header">
+                                                <span class="message-sender">{{ $message['user']['name'] }}</span>
+                                                <span class="message-time">
+                                                    {{ \Carbon\Carbon::parse($message['created_at'])->format('H:i') }}
+                                                </span>
+                                            </div>
+                                            <div class="message-bubble">
+                                                @if (!empty($message['cattachment_path']))
+                                                    <img src="{{ asset('storage/' . $message['cattachment_path']) }}"
+                                                        class="img-fluid rounded"
+                                                        style="max-width: 250px; cursor:pointer;"
+                                                        onclick="window.open(this.src)">
+                                                @endif
+
+                                                @if(!empty($message['cattachment_path']) && !empty($message['ctext']))
+                                                    <p class="mt-0"></p>
+                                                @endif
+
+                                                @if (!empty($message['ctext']))
+                                                    <p class="mb-0">{{ $message['ctext'] }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            @endforeach
+                        @endif
                         {{-- System Footer --}}
                         @if(in_array($chatRoom->cstatus, ['resolved', 'closed']) || $isAutoClosedPending)
                             <div class="system-message mt-3">
@@ -215,7 +267,7 @@
                                             @endif
                                         </strong>
 
-                                        <p class="mb-1">
+                                        <p class="mb-1 fs-6">
                                             This ticket has been
                                             {{ $isAutoClosedPending ? 'automatically' : '' }}
                                             <strong>{{ $chatRoom->cstatus === 'resolved' ? 'resolved' : 'closed' }}</strong> 
@@ -224,13 +276,13 @@
 
                                         @if($isAutoClosedPending)
                                             <div class="mt-1">
-                                                <small class="text-muted">
+                                                <small class="text-muted fs-6">
                                                     Reason: Closed by system because there is no active activity in 2 days.
                                                 </small>
                                             </div>
                                         @elseif(!empty($chatRoom->creason))
                                             <div class="mt-1">
-                                                <small class="text-muted">
+                                                <small class="text-muted fs-6">
                                                     Reason: {{ $chatRoom->creason }}
                                                 </small>
                                             </div>
@@ -285,13 +337,13 @@
                             @endphp
                             @if ($canManageStatus)
                                 <div class="d-flex gap-2">
-                                    @if ($chatRoom->cstatus !== 'resolved' && $chatRoom->cstatus !== 'closed')
+                                    @if (!$isTicketLocked)
                                         <button class="btn btn-sm btn-success" type="button"
                                             wire:click="updateStatus('resolved')">
                                             <i class="bi bi-check-circle"></i> {{ __('Mark as Resolved') }}
                                         </button>
                                     @endif
-                                    @if (!in_array($chatRoom->cstatus, ['resolved', 'closed'], true))
+                                    @if (!$isTicketLocked)
                                         <button class="btn btn-sm btn-danger" type="button"
                                             wire:click="updateStatus('closed')">
                                             <i class="bi bi-x-circle"></i> {{ __('Close Conversation') }}
@@ -602,6 +654,46 @@
             text-align: left;
         }
 
+        /* Members */
+        .members-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 4px;
+            margin-top: 4px;
+        }
+
+        .members-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .member-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f1f1;
+            gap: 2px;
+        }
+
+        .member-item:last-child {
+            border-bottom: none;
+        }
+
+        .member-name {
+            font-size: 0.7rem;
+            font-weight: 300;
+            color: #6c757d;
+        }
+
+        .member-role {
+            font-size: 0.75rem;
+            color: #999;
+        }
+
         .system-card i {
             font-size: 1rem;
             margin-top: 2px;
@@ -642,6 +734,30 @@
         .feedback-list::-webkit-scrollbar-thumb:hover,
         .chat-messages::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
+        }
+
+        /* Date Separator (minimalist) */
+        .date-separator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .date-separator::before,
+        .date-separator::after {
+            content: '';
+            flex: 1 1 0;
+            height: 1px;
+            background: #e9ecef;
+        }
+
+        .date-separator span {
+            padding: 0 8px;
+            white-space: nowrap;
+            text-transform: capitalize;
         }
 
         /* Mobile Responsive */
