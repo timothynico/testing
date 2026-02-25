@@ -46,6 +46,7 @@ class Room extends Component
     {
         $this->chatRoomId = $id;
         $this->refreshChatState();
+        $this->dispatch('chatRoomSelected', chatRoomId: $id);
     }
 
     public function sendMessage()
@@ -192,11 +193,15 @@ class Room extends Component
                 $query->where('cstatus', $this->filterStatus);
             })
 
+            ->withMax('messages', 'created_at')
+
             ->with(['applicant.customer', 'messages' => function ($q) {
                 $q->latest()->limit(1);
             }])
 
-            ->latest()
+            ->with(['members'])
+
+            ->orderByDesc('messages_max_created_at')
             ->get()
 
             ->map(function ($room) {
@@ -219,12 +224,6 @@ class Room extends Component
         return view('livewire.chat.room', [
             'chatRoomList' => $chatRoomList,
         ])->layout('layouts.app');
-    }
-
-
-    public function refreshRoomList()
-    {
-        // Intentionally empty: triggers Livewire re-render so room list updates without polling.
     }
 
     public function updateStatus($status = null)
