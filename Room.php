@@ -221,6 +221,12 @@ class Room extends Component
         ])->layout('layouts.app');
     }
 
+
+    public function refreshRoomList()
+    {
+        // Intentionally empty: triggers Livewire re-render so room list updates without polling.
+    }
+
     public function updateStatus($status = null)
     {
         if (!$this->chatRoomId) {
