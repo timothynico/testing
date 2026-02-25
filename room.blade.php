@@ -803,154 +803,118 @@
 @push('scripts')
     <script>
         document.addEventListener('livewire:init', () => {
-            const statusModalElement = document.getElementById('statusModal');
-            const statusModal = statusModalElement ? new bootstrap.Modal(statusModalElement) : null;
+        const statusModalElement = document.getElementById('statusModal');
+        const statusModal = statusModalElement ? new bootstrap.Modal(statusModalElement) : null;
 
-            Livewire.on('open-status-modal', () => {
-                statusModal?.show();
+        Livewire.on('open-status-modal', () => statusModal?.show());
+        Livewire.on('close-status-modal', () => statusModal?.hide());
+
+        setTimeout(() => {
+            if (window.Echo?.socketId()) {
+                Livewire.dispatch('setSocketId', { socketId: window.Echo.socketId() });
+            }
+        }, 500);
+
+        // Resizer
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('feedbackSidebar');
+        if (resizer && sidebar) {
+            let isResizing = false, startX = 0, startWidth = 0;
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = sidebar.offsetWidth;
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
             });
-
-            Livewire.on('close-status-modal', () => {
-                statusModal?.hide();
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const width = startWidth + (e.clientX - startX);
+                if (width >= 280 && width <= 600) sidebar.style.width = width + 'px';
             });
-
-            setTimeout(() => {
-                if (window.Echo && window.Echo.socketId) {
-                    const socketId = window.Echo.socketId();
-                    console.log('Socket ID:', socketId);
-
-                    Livewire.dispatch('setSocketId', { socketId });
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
                 }
-            }, 500);
+            });
+        }
 
-            // Resizer functionality
-            const resizer = document.getElementById('resizer');
-            const sidebar = document.getElementById('feedbackSidebar');
+        // Scroll
+        const chatState = {
+            initializedChatrooms: new Set(),
+            messageCountByChatroom: {},
+        };
 
-            if (resizer && sidebar) {
-                let isResizing = false;
-                let startX = 0;
-                let startWidth = 0;
+        const scrollToBottom = (el) => requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
 
-                resizer.addEventListener('mousedown', function(e) {
-                    isResizing = true;
-                    startX = e.clientX;
-                    startWidth = sidebar.offsetWidth;
-                    document.body.style.cursor = 'col-resize';
-                    document.body.style.userSelect = 'none';
-                });
+        const syncChatScrollPosition = () => {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
 
-                document.addEventListener('mousemove', function(e) {
-                    if (!isResizing) return;
+            const currentChatroomId = @this.get('chatRoomId');
+            if (!currentChatroomId) return;
 
-                    const width = startWidth + (e.clientX - startX);
-                    const minWidth = 280;
-                    const maxWidth = 600;
+            const messages = chatMessages.querySelectorAll('.message');
+            const messageCount = messages.length;
+            const latestMessage = messages[messageCount - 1];
+            const previousCount = chatState.messageCountByChatroom[currentChatroomId] ?? 0;
+            const isFirst = !chatState.initializedChatrooms.has(currentChatroomId);
+            const hasNew = messageCount > previousCount;
+            const isOutgoing = latestMessage?.classList.contains('outgoing');
 
-                    if (width >= minWidth && width <= maxWidth) {
-                        sidebar.style.width = width + 'px';
-                    }
-                });
-
-                document.addEventListener('mouseup', function() {
-                    if (isResizing) {
-                        isResizing = false;
-                        document.body.style.cursor = '';
-                        document.body.style.userSelect = '';
-                    }
-                });
+            if (isFirst || (hasNew && isOutgoing)) {
+                scrollToBottom(chatMessages);
+                chatState.initializedChatrooms.add(currentChatroomId);
             }
 
-            // Keep chat pinned to the latest message on first open and after sending outgoing messages
-            const chatState = {
-                initializedChatrooms: new Set(),
-                messageCountByChatroom: {},
-            };
+            chatState.messageCountByChatroom[currentChatroomId] = messageCount;
+        };
 
-            const scrollToBottom = (chatMessages) => {
-                requestAnimationFrame(() => {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                });
-            };
+        Livewire.hook('morph.updated', syncChatScrollPosition);
 
-            const syncChatScrollPosition = () => {
-                const chatMessages = document.getElementById('chatMessages');
-                const currentChatroomId = @this.get('chatRoomId');
+        // =============================================
+        // Reverb - subscribe berdasarkan event dispatch
+        // dari Livewire, bukan morph.updated
+        // =============================================
+        let activeChatroomChannel = null;
 
-                if (!chatMessages || !currentChatroomId) {
-                    return;
-                }
+        const subscribeToChatroom = (chatroomId) => {
+            if (!window.Echo || !chatroomId) return;
+            if (activeChatroomChannel === chatroomId) return; // sudah subscribe, skip
 
-                const messages = chatMessages.querySelectorAll('.message');
-                const latestMessage = messages[messages.length - 1];
-                const messageCount = messages.length;
-                const previousCount = chatState.messageCountByChatroom[currentChatroomId] ?? 0;
-                const isFirstRenderInChatroom = !chatState.initializedChatrooms.has(currentChatroomId);
-                const hasNewMessage = messageCount > previousCount;
-                const isLatestMessageOutgoing = latestMessage?.classList.contains('outgoing');
+            // Tinggalkan channel lama
+            if (activeChatroomChannel) {
+                window.Echo.leave(`chatroom.${activeChatroomChannel}`);
+                console.log('Left chatroom:', activeChatroomChannel);
+            }
 
-                if (isFirstRenderInChatroom || (hasNewMessage && isLatestMessageOutgoing)) {
-                    scrollToBottom(chatMessages);
-                    chatState.initializedChatrooms.add(currentChatroomId);
-                }
+            activeChatroomChannel = chatroomId;
 
-                chatState.messageCountByChatroom[currentChatroomId] = messageCount;
-            };
-
-            Livewire.hook('morph.updated', syncChatScrollPosition);
-            syncChatScrollPosition();
-
-            // Echo listener for instant updates (Reverb/Pusher compatible)
-            const subscribedChatrooms = new Set();
-
-            const getRenderedChatroomIds = () => {
-                return Array.from(document.querySelectorAll('.feedback-item[data-chatroom-id]'))
-                    .map((item) => item.dataset.chatroomId)
-                    .filter(Boolean);
-            };
-
-            const attachChatroomListener = (chatroomId) => {
-                if (!window.Echo || subscribedChatrooms.has(chatroomId)) {
-                    return;
-                }
-
-                subscribedChatrooms.add(chatroomId);
-
-                window.Echo.channel(`chatroom.${chatroomId}`)
-                    .listen('.chat.message.sent', (event) => {
-                        const activeChatroomId = @this.get('chatRoomId');
-
-                        @this.call('refreshRoomList');
-
-                        if (String(activeChatroomId) === String(event.nidchatroom)) {
-                            @this.call('refreshChatState');
-                        }
-                    });
-            };
-
-            const syncChatroomSubscriptions = () => {
-                if (!window.Echo) {
-                    return;
-                }
-
-                const activeIds = new Set(getRenderedChatroomIds());
-
-                activeIds.forEach((chatroomId) => {
-                    attachChatroomListener(chatroomId);
-                });
-
-                Array.from(subscribedChatrooms).forEach((chatroomId) => {
-                    if (activeIds.has(chatroomId)) {
-                        return;
+            window.Echo.private(`chatroom.${chatroomId}`)
+                .listen('.chat.message.sent', (data) => {
+                    console.log('📨 Message received:', data);
+                    const el = document.querySelector('[wire\\:id]');
+                    if (el) {
+                        const wireId = el.getAttribute('wire:id');
+                        Livewire.find(wireId).call('refreshChatState');
                     }
+                })
+                .error((err) => console.error('Channel error:', err));
 
-                    window.Echo.leave(`chatroom.${chatroomId}`);
-                    subscribedChatrooms.delete(chatroomId);
-                });
-            };
+            console.log('Subscribed to chatroom:', chatroomId);
+        };
 
-            syncChatroomSubscriptions();
-            Livewire.hook('morph.updated', syncChatroomSubscriptions);
+        // Subscribe ke chatroom yang sudah aktif saat halaman pertama load
+        const initialId = @this.get('chatRoomId');
+        if (initialId) subscribeToChatroom(initialId);
+
+        // Listen event dari Livewire ketika user pindah chatroom
+        Livewire.on('chatRoomSelected', ({ chatRoomId }) => {
+            console.log('🎯 chatRoomSelected fired:', chatRoomId);
+            subscribeToChatroom(chatRoomId);
         });
+    });
     </script>
 @endpush
