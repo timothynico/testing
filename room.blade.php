@@ -1,4 +1,4 @@
-<div wire:poll.3s="refreshChatState">
+<div>
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
@@ -900,34 +900,57 @@
             Livewire.hook('morph.updated', syncChatScrollPosition);
             syncChatScrollPosition();
 
-            // Optional Echo listener for instant updates when available
-            let activeChatroomChannel = null;
+            // Echo listener for instant updates (Reverb/Pusher compatible)
+            const subscribedChatrooms = new Set();
 
-            const subscribeToChatroom = () => {
-                if (!window.Echo || !@this.get('chatRoomId')) {
+            const getRenderedChatroomIds = () => {
+                return Array.from(document.querySelectorAll('.feedback-item[data-chatroom-id]'))
+                    .map((item) => item.dataset.chatroomId)
+                    .filter(Boolean);
+            };
+
+            const attachChatroomListener = (chatroomId) => {
+                if (!window.Echo || subscribedChatrooms.has(chatroomId)) {
                     return;
                 }
 
-                const currentChatroomId = @this.get('chatRoomId');
+                subscribedChatrooms.add(chatroomId);
 
-                if (activeChatroomChannel === currentChatroomId) {
-                    return;
-                }
+                window.Echo.channel(`chatroom.${chatroomId}`)
+                    .listen('.chat.message.sent', (event) => {
+                        const activeChatroomId = @this.get('chatRoomId');
 
-                if (activeChatroomChannel) {
-                    window.Echo.leave(`private-chatroom.${activeChatroomChannel}`);
-                }
+                        @this.call('refreshRoomList');
 
-                activeChatroomChannel = currentChatroomId;
-
-                window.Echo.private(`chatroom.${currentChatroomId}`)
-                    .listen('.chat.message.sent', () => {
-                        @this.call('refreshChatState');
+                        if (String(activeChatroomId) === String(event.nidchatroom)) {
+                            @this.call('refreshChatState');
+                        }
                     });
             };
 
-            subscribeToChatroom();
-            Livewire.hook('morph.updated', subscribeToChatroom);
+            const syncChatroomSubscriptions = () => {
+                if (!window.Echo) {
+                    return;
+                }
+
+                const activeIds = new Set(getRenderedChatroomIds());
+
+                activeIds.forEach((chatroomId) => {
+                    attachChatroomListener(chatroomId);
+                });
+
+                Array.from(subscribedChatrooms).forEach((chatroomId) => {
+                    if (activeIds.has(chatroomId)) {
+                        return;
+                    }
+
+                    window.Echo.leave(`chatroom.${chatroomId}`);
+                    subscribedChatrooms.delete(chatroomId);
+                });
+            };
+
+            syncChatroomSubscriptions();
+            Livewire.hook('morph.updated', syncChatroomSubscriptions);
         });
     </script>
 @endpush
