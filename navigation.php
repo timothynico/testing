@@ -555,6 +555,14 @@ NAVIGATION COMPONENT
             position: relative;
         }
 
+        .js-feedback-link.feedback-alert {
+            color: #dc3545 !important;
+        }
+
+        .js-feedback-link.feedback-alert i {
+            color: inherit;
+        }
+
         .js-feedback-link.feedback-alert::after {
             content: '';
             position: absolute;
@@ -562,7 +570,7 @@ NAVIGATION COMPONENT
             right: 6px;
             width: 8px;
             height: 8px;
-            background-color: #dc3545; 
+            background-color: #dc3545;
             border-radius: 50%;
             animation: pulseDot 1.8s infinite;
         }
@@ -737,7 +745,7 @@ NAVIGATION COMPONENT
                 };
 
                 chatRoomIds.forEach((roomId) => {
-                    window.Echo.private(`chatroom.${roomId}`)
+                    window.Echo.channel(`chatroom.${roomId}`)
                         .listen('.chat.message.sent', setFeedbackAlert);
                 });
             }
