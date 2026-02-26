@@ -44,30 +44,52 @@
                         data-chatroom-id="{{ $item['nidchatroom'] }}"
                         data-user="{{ $item['applicant']->name ?? 'Unknown' }}"
                         data-menu="{{ $item['ctype'] }}" data-status="{{ $item['cstatus'] }}">
-                        <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex justify-content-between align-items-stretch">
+                            {{-- LEFT --}}
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <h6 class="feedback-title mb-0">
                                         {{ $item['creference'] ?? 'Complaint by ' . ($item['applicant']->name ?? 'Unknown') }}
                                     </h6>
-                                    <span class="feedback-menu">{{ ucfirst($item['ctype']) }}</span>
+                                    <span class="feedback-menu">
+                                        {{ ucfirst($item['ctype']) }}
+                                    </span>
                                 </div>
+
                                 <p class="feedback-user mb-0">
                                     {{ $item['applicant']->name ?? 'Unknown' }}
-                                    <span class="user-role">({{ ucfirst($item['customer']->cnmcust ?? 'Customer') }})</span>
+                                    <span class="user-role">
+                                        ({{ ucfirst($item['customer']->cnmcust ?? 'Customer') }})
+                                    </span>
                                 </p>
+
                                 <p class="feedback-description text-truncate mb-0 text-capitalize">
                                     {{ $item['cissue'] ?? 'Other' }}
                                 </p>
                             </div>
-                            <div class="text-end flex-shrink-0">
-                                <span class="feedback-time d-block">
-                                    {{ $item['last_message_at'] ? $item['last_message_at']->diffForHumans() : 'No messages' }}
-                                </span>
-                                @if ($item['unread_count'] > 0)
-                                    <span class="unread-badge">{{ $item['unread_count'] }}</span>
-                                @endif
+
+                            {{-- RIGHT --}}
+                            <div class="d-flex flex-column justify-content-between align-items-end">
+                                    <span class="feedback-time d-block">
+                                        {{ $item['last_message_at'] ? $item['last_message_at']->diffForHumans() : 'No messages' }}
+                                    </span>
+
+                                    @if ($item['unread_count'] > 0)
+                                        <span class="unread-badge mt-1 d-inline-block">
+                                            {{ $item['unread_count'] }}
+                                        </span>
+                                    @endif
+
+                                    <span class="badge rounded-1
+                                        @if($item['cstatus'] === 'in_progress') bg-warning text-dark
+                                        @elseif($item['cstatus'] === 'resolved') bg-success text-white
+                                        @elseif($item['cstatus'] === 'closed') bg-danger text-white
+                                        @endif"
+                                        style="font-size:0.7rem; font-weight: 500; margin-top: 4px">
+                                        {{ ucfirst(str_replace('_', ' ', $item['cstatus'])) }}
+                                    </span>
                             </div>
+
                         </div>
                     </div>
                 @empty
@@ -110,7 +132,7 @@
                                     @elseif ($chatRoom->cstatus === 'resolved')
                                         bg-success
                                     @elseif ($chatRoom->cstatus === 'closed')
-                                        bg-secondary
+                                        bg-danger
                                     @endif
                                 ">
                                     {{ ucfirst(str_replace('_', ' ', $chatRoom->cstatus)) }}
@@ -169,6 +191,17 @@
                                                     {{ $member->name }}
                                                     @if($member->customer?->cnmcust)
                                                         - {{ $member->customer->cnmcust }}
+                                                    @endif
+                                                    @if($member->customer_role == 'warehouse_pic')
+                                                        (WH)
+                                                    @endif
+
+                                                    @if($member->customer_role == 'finance')
+                                                        (FIN)
+                                                    @endif
+
+                                                    @if($member->customer_role == 'purchasing')
+                                                        (PUR)
                                                     @endif
                                                 </span>
                                                 <span class="member-role fs-6">
@@ -801,8 +834,14 @@
 @endpush
 
 @push('scripts')
-    <script>
-        document.addEventListener('livewire:init', () => {
+<script>
+    if (typeof Livewire !== 'undefined') {
+        initChatRoom();
+    } else {
+        document.addEventListener('livewire:initialized', initChatRoom);
+    }
+
+    function initChatRoom() {
         const statusModalElement = document.getElementById('statusModal');
         const statusModal = statusModalElement ? new bootstrap.Modal(statusModalElement) : null;
 
@@ -841,7 +880,7 @@
             });
         }
 
-        // Scroll
+        // Scroll state
         const chatState = {
             initializedChatrooms: new Set(),
             messageCountByChatroom: {},
@@ -853,7 +892,13 @@
             const chatMessages = document.getElementById('chatMessages');
             if (!chatMessages) return;
 
-            const currentChatroomId = @this.get('chatRoomId');
+            const component = Livewire.all()[0];
+            if (!component) return;
+
+            const currentChatroomId = component.$wire?.chatRoomId
+                ?? component.snapshot?.data?.chatRoomId
+                ?? null;
+
             if (!currentChatroomId) return;
 
             const messages = chatMessages.querySelectorAll('.message');
@@ -872,49 +917,131 @@
             chatState.messageCountByChatroom[currentChatroomId] = messageCount;
         };
 
-        Livewire.hook('morph.updated', syncChatScrollPosition);
-
-        // =============================================
-        // Reverb - subscribe berdasarkan event dispatch
-        // dari Livewire, bukan morph.updated
-        // =============================================
+        // ── Reverb subscribe ──
         let activeChatroomChannel = null;
+        const subscribedChannels = new Set();
 
-        const subscribeToChatroom = (chatroomId) => {
+        const subscribeToChannel = (chatroomId) => {
             if (!window.Echo || !chatroomId) return;
-            if (activeChatroomChannel === chatroomId) return; // sudah subscribe, skip
+            const id = parseInt(chatroomId);
+            if (subscribedChannels.has(id)) return;
 
-            // Tinggalkan channel lama
-            if (activeChatroomChannel) {
-                window.Echo.leave(`chatroom.${activeChatroomChannel}`);
-                console.log('Left chatroom:', activeChatroomChannel);
-            }
+            subscribedChannels.add(id);
 
-            activeChatroomChannel = chatroomId;
+            window.Echo.private(`chatroom.${id}`)
+                .listen('.chat.message.sent', () => {
+                    window.checkUnreadMessages();
+                    console.log('Message received from chatroom:', id);
+                    const component = Livewire.all()[0];
+                    if (!component) return;
 
-            window.Echo.private(`chatroom.${chatroomId}`)
-                .listen('.chat.message.sent', (data) => {
-                    console.log('📨 Message received:', data);
-                    const el = document.querySelector('[wire\\:id]');
-                    if (el) {
-                        const wireId = el.getAttribute('wire:id');
-                        Livewire.find(wireId).call('refreshChatState');
+                    const activeChatroom = component.$wire?.chatRoomId
+                        ?? component.snapshot?.data?.chatRoomId
+                        ?? null;
+
+                    if (parseInt(activeChatroom) === id) {
+                        component.$wire.call('refreshChatState');
+                    } else {
+                        component.$wire.call('$refresh');
                     }
+                })
+                .listen('.chat.status.updated', (e) => {
+                    console.log('Status updated for chatroom:', id, e.status);
+                    const component = Livewire.all()[0];
+                    if (component) component.$wire.call('$refresh');
                 })
                 .error((err) => console.error('Channel error:', err));
 
-            console.log('Subscribed to chatroom:', chatroomId);
+            console.log('Subscribed to chatroom:', id);
         };
 
-        // Subscribe ke chatroom yang sudah aktif saat halaman pertama load
-        const initialId = @this.get('chatRoomId');
+        const subscribeToChatroom = (chatroomId) => {
+            activeChatroomChannel = parseInt(chatroomId);
+            window.checkUnreadMessages();
+            subscribeToChannel(chatroomId);
+        };
+
+        const subscribeAllVisible = () => {
+            document.querySelectorAll('[data-chatroom-id]').forEach(el => {
+                subscribeToChannel(el.dataset.chatroomId);
+            });
+        };
+
+        // ── User private channel (untuk notif chatroom baru) ──
+        const subscribeToUserChannel = () => {
+            const userId = {{ Auth::id() }};
+            const channelName = `user.${userId}`;
+
+            if (subscribedChannels.has(channelName)) return;
+            subscribedChannels.add(channelName);
+
+            window.Echo.private(channelName)
+                .listen('.chatroom.created', (e) => {
+                    console.log('New chatroom created:', e);
+                    const component = Livewire.all()[0];
+                    window.checkUnreadMessages();
+                    if (component) component.$wire.call('refreshSidebar');
+                })
+                .subscribed(() => {
+                    console.log('Subscribed to user channel:', channelName);
+                })
+                .error((err) => {
+                    console.error('User channel error:', err);
+                    // Hapus dari set agar bisa retry
+                    subscribedChannels.delete(channelName);
+                });
+        };
+
+        // Tunggu Echo ready baru subscribe — retry setiap 300ms maksimal 20x (6 detik)
+        const waitForEchoThenSubscribe = (attempt = 0) => {
+            if (window.Echo?.connector?.pusher?.connection?.state === 'connected') {
+                console.log('Echo connected, subscribing user channel...');
+                subscribeToUserChannel();
+                return;
+            }
+
+            if (attempt >= 20) {
+                console.warn('Echo never connected after 6s, skip user channel subscribe');
+                return;
+            }
+
+            console.log(`Waiting for Echo... attempt ${attempt + 1}`);
+            setTimeout(() => waitForEchoThenSubscribe(attempt + 1), 300);
+        };
+
+        waitForEchoThenSubscribe();
+
+        // Subscribe chatroom aktif saat init
+        const component = Livewire.all()[0];
+        const initialId = component?.$wire?.chatRoomId
+            ?? component?.snapshot?.data?.chatRoomId
+            ?? null;
         if (initialId) subscribeToChatroom(initialId);
 
-        // Listen event dari Livewire ketika user pindah chatroom
+        subscribeAllVisible();
+        setTimeout(() => subscribeAllVisible(), 500);
+
+        // Mark as read saat user balik fokus ke tab
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                const comp = Livewire.all()[0];
+                if (comp?.$wire?.chatRoomId) {
+                    comp.$wire.call('markAsRead');
+                }
+            }
+        });
+
+        // Listen event pindah chatroom
         Livewire.on('chatRoomSelected', ({ chatRoomId }) => {
-            console.log('🎯 chatRoomSelected fired:', chatRoomId);
+            console.log('chatRoomSelected:', chatRoomId);
             subscribeToChatroom(chatRoomId);
         });
-    });
-    </script>
+
+        // Setiap kali Livewire re-render
+        Livewire.hook('morph.updated', () => {
+            syncChatScrollPosition();
+            subscribeAllVisible();
+        });
+    }
+</script>
 @endpush
