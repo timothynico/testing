@@ -6,6 +6,8 @@ use App\Events\ChatMessageSent;
 use App\Models\ChatRoom;
 use App\Models\Message;
 use App\Models\ChatRoomDetail;
+use App\Services\ImageUploadService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -57,7 +59,7 @@ class Room extends Component
 
         $this->validate([
             'newMessage' => 'nullable|string|max:5000',
-            'attachment' => 'nullable|image|max:2048' // max 2MB
+            'attachment' => 'nullable|image|max:10240' // max 10MB
         ]);
 
         // Return if both emptys
@@ -68,7 +70,10 @@ class Room extends Component
         $path = null;
 
         if ($this->attachment) {
-            $path = $this->attachment->store('chat-attachments', 'public');
+            $path = ImageUploadService::compressAndStore(
+                $this->attachment,
+                'chat-attachments'
+            );
         }
 
         $message = Message::create([
@@ -152,6 +157,8 @@ class Room extends Component
 
     public function markAsRead()
     {
+        if (!$this->chatRoomId) return;
+
         $lastMessageId = Message::where('nidchatroom', $this->chatRoomId)
             ->latest('nidmessage')
             ->value('nidmessage');
@@ -190,7 +197,20 @@ class Room extends Component
 
             // Status query filter
             ->when($this->filterStatus, function ($query) {
-                $query->where('cstatus', $this->filterStatus);
+                if ($this->filterStatus === 'closed') {
+                    $query->where(function ($q) {
+                        $q->where('cstatus', 'closed')
+                        ->orWhereRaw("
+                            (
+                                SELECT MAX(created_at)
+                                FROM tmessages
+                                WHERE tmessages.nidchatroom = tchatrooms.nidchatroom
+                            ) <= ?
+                        ", [Carbon::now()->subDays(2)]);
+                    });
+                } else {
+                    $query->where('cstatus', $this->filterStatus);
+                }
             })
 
             ->withMax('messages', 'created_at')
@@ -221,9 +241,14 @@ class Room extends Component
                 ];
             });
 
-        return view('livewire.chat.room', [
-            'chatRoomList' => $chatRoomList,
-        ])->layout('layouts.app');
+            $this->dispatch('allChatroomIds', [
+                'ids' => $chatRoomList->pluck('nidchatroom')->toArray()
+            ]);
+
+            return view('livewire.chat.room', [
+                'chatRoomList' => $chatRoomList,
+            ])->layout('layouts.app');
+
     }
 
     public function updateStatus($status = null)
@@ -276,10 +301,21 @@ class Room extends Component
             'creason' => $this->statusReason,
         ]);
 
+        broadcast(new \App\Events\ChatStatusUpdated($chatRoom))->toOthers();
+
         $this->refreshChatState();
         $this->pendingStatus = null;
         $this->statusReason = '';
 
         $this->dispatch('close-status-modal');
+    }
+
+    public function refreshSidebar()
+    {
+        if ($this->chatRoomId) {
+            $this->refreshChatState();
+        }
+        // Livewire 3 otomatis panggil render() setelah method ini,
+        // sehingga unread_count sidebar selalu terupdate
     }
 }
