@@ -28,6 +28,7 @@ class Room extends Component
     public $idClose = null;
     public $attachment;
     public $firstUnreadMessageId = null;
+    public $groupedMessages = [];
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -81,26 +82,40 @@ class Room extends Component
             'niduser' => Auth::id(),
             'ctext' => $this->newMessage,
             'cattachment_path' => $path,
-        ]);
+        ])->load('sender');
 
         broadcast(new ChatMessageSent($message))->toOthers();
 
-        $this->refreshChatState();
+        $this->messages[] = $this->formatMessage($message);
+        $this->regroupMessages();
+        $this->markAsRead();
 
         $this->reset(['newMessage', 'attachment']);
     }
 
     public function messageReceived($event)
     {
+        if ((int) ($event['nidchatroom'] ?? 0) !== (int) $this->chatRoomId) {
+            return;
+        }
+
+        $incomingId = (int) ($event['nidmessage'] ?? 0);
+        if ($incomingId > 0 && collect($this->messages)->contains(fn ($message) => (int) ($message['nidmessage'] ?? 0) === $incomingId)) {
+            return;
+        }
+
         $this->messages[] = [
-            'ctext' => $event['ctext'],
-            'cattachment_path' => $event['cattachment_path'],
-            'created_at' => $event['created_at'],
-            'niduser' => $event['niduser'],
+            'nidmessage' => $event['nidmessage'] ?? null,
+            'ctext' => $event['ctext'] ?? '',
+            'cattachment_path' => $event['cattachment_path'] ?? null,
+            'created_at' => $event['created_at'] ?? now()->toISOString(),
+            'niduser' => $event['niduser'] ?? null,
             'user' => [
-                'name' => $event['cusername']
-            ]
+                'name' => $event['cusername'] ?? 'Unknown',
+            ],
         ];
+
+        $this->regroupMessages();
     }
 
     public function refreshChatState()
@@ -109,12 +124,13 @@ class Room extends Component
             return;
         }
 
-        $chatRoom = ChatRoom::with('applicant.customer')->find($this->chatRoomId);
+        $chatRoom = ChatRoom::with(['applicant.customer', 'members.customer', 'closedBy'])->find($this->chatRoomId);
 
         if (!$chatRoom) {
             $this->chatRoomId = null;
             $this->chatRoom = null;
             $this->messages = [];
+            $this->groupedMessages = [];
             $this->firstUnreadMessageId = null;
 
             return;
@@ -134,23 +150,15 @@ class Room extends Component
             ->orderBy('nidmessage')
             ->value('nidmessage');
 
-        $this->messages = Message::with('sender')
+        $this->messages = Message::with('sender:id,name')
             ->where('nidchatroom', $this->chatRoomId)
+            ->select(['nidmessage', 'nidchatroom', 'niduser', 'ctext', 'cattachment_path', 'created_at'])
             ->orderBy('created_at')
             ->get()
-            ->map(function ($msg) {
-                return [
-                    'nidmessage' => $msg->nidmessage,
-                    'ctext' => $msg->ctext,
-                    'cattachment_path' => $msg->cattachment_path,
-                    'created_at' => $msg->created_at,
-                    'niduser' => $msg->niduser,
-                    'user' => [
-                        'name' => $msg->sender->name ?? 'Unknown'
-                    ]
-                ];
-            })
+            ->map(fn ($msg) => $this->formatMessage($msg))
             ->toArray();
+
+        $this->regroupMessages();
 
         $this->markAsRead();
     }
@@ -163,15 +171,21 @@ class Room extends Component
             ->latest('nidmessage')
             ->value('nidmessage');
 
-        ChatRoomDetail::where('nidchatroom', $this->chatRoomId)
-            ->where('niduser', Auth::id())
-            ->update([
-                'nidlastreadmessage' => $lastMessageId
-            ]);
+        ChatRoomDetail::updateOrCreate(
+            [
+                'nidchatroom' => $this->chatRoomId,
+                'niduser' => Auth::id(),
+            ],
+            [
+                'nidlastreadmessage' => $lastMessageId,
+            ]
+        );
     }
 
     public function render()
     {
+        $authId = (int) Auth::id();
+
         $chatRoomList = ChatRoom::query()
             ->whereHas('members', function ($query) {
                 $query->where('niduser', Auth::id());
@@ -215,9 +229,25 @@ class Room extends Component
 
             ->withMax('messages', 'created_at')
 
-            ->with(['applicant.customer', 'messages' => function ($q) {
-                $q->latest()->limit(1);
-            }])
+            ->select('tchatrooms.*')
+            ->selectRaw(
+                '(
+                    SELECT COUNT(*)
+                    FROM tmessages
+                    WHERE tmessages.nidchatroom = tchatrooms.nidchatroom
+                        AND tmessages.niduser != ?
+                        AND tmessages.nidmessage > COALESCE((
+                            SELECT tchatroomdtl.nidlastreadmessage
+                            FROM tchatroomdtl
+                            WHERE tchatroomdtl.nidchatroom = tchatrooms.nidchatroom
+                                AND tchatroomdtl.niduser = ?
+                            LIMIT 1
+                        ), 0)
+                ) AS unread_count',
+                [$authId, $authId]
+            )
+
+            ->with(['applicant.customer', 'closedBy'])
 
             ->with(['members'])
 
@@ -236,8 +266,8 @@ class Room extends Component
                     'closedBy' => $room->closedBy,
                     'creason' => $room->creason,
                     'customer' => $room->applicant->customer,
-                    'last_message_at' => $room->messages->first()?->created_at,
-                    'unread_count' => $room->unreadCountFor(Auth::id()),
+                    'last_message_at' => $room->messages_max_created_at,
+                    'unread_count' => (int) ($room->unread_count ?? 0),
                 ];
             });
 
@@ -317,5 +347,28 @@ class Room extends Component
         }
         // Livewire 3 otomatis panggil render() setelah method ini,
         // sehingga unread_count sidebar selalu terupdate
+    }
+
+    protected function formatMessage(Message $message): array
+    {
+        return [
+            'nidmessage' => $message->nidmessage,
+            'ctext' => $message->ctext,
+            'cattachment_path' => $message->cattachment_path,
+            'created_at' => $message->created_at,
+            'niduser' => $message->niduser,
+            'user' => [
+                'name' => $message->sender->name ?? $message->user->name ?? 'Unknown',
+            ],
+        ];
+    }
+
+    protected function regroupMessages(): void
+    {
+        $this->groupedMessages = collect($this->messages)
+            ->groupBy(function ($message) {
+                return Carbon::parse($message['created_at'])->toDateString();
+            })
+            ->toArray();
     }
 }
