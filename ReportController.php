@@ -103,17 +103,35 @@ class ReportController extends Controller
     public function getOnhandInventory(string $ckdcust = null){
         // $firstdateoftheyear=date("Y-01-01");
         // $lastdateoftheyear=date("Y-12-31");
-        $arrinventory=DB::select("SELECT ms.ckdbrg, bsc.cbasic, bsc.cgrade, bsc.cwarna, bsc.nmd, bsc.nmr, ms.nqty, ms.dtglbukti, ms.ckdwh, ms.cstatus, ms.cnobukti
+        $arrinventoryQuery = "SELECT ms.ckdbrg, bsc.cbasic, bsc.cgrade, bsc.cwarna, bsc.nmd, bsc.nmr, ms.nqty, ms.dtglbukti, ms.ckdwh, ms.cstatus, ms.cnobukti, ms.ctempat
             FROM mstock ms
-            LEFT JOIN mbasic bsc ON ms.ckdbrg=bsc.ckdbrg 
-            WHERE ms.ctempat='".$ckdcust."'
-        ");
+            LEFT JOIN mbasic bsc ON ms.ckdbrg=bsc.ckdbrg";
+        $arrinventoryBindings = [];
+
+        if ($ckdcust !== null) {
+            $arrinventoryQuery .= " WHERE ms.ctempat = ?";
+            $arrinventoryBindings[] = $ckdcust;
+        }
+
+        $arrinventory = DB::select($arrinventoryQuery, $arrinventoryBindings);
         //usage
-        $datausage=DB::select("SELECT dtl.cpallettype,dtl.cusage
+        $datausageQuery = "SELECT dtl.cpallettype,dtl.cusage
             FROM ytagrdirhdr hdr
-            LEFT JOIN ytagrdirdtl dtl ON hdr.cnokontrak=dtl.cnokontrak
-            WHERE hdr.ckdcust='".$ckdcust."'");
-        $arrckdwh=DB::select("SELECT ckdwh,cnmwh FROM ymcustwarehouse WHERE ckdcust='".$ckdcust."'");
+            LEFT JOIN ytagrdirdtl dtl ON hdr.cnokontrak=dtl.cnokontrak";
+        $datausageBindings = [];
+
+        if ($ckdcust !== null) {
+            $datausageQuery .= " WHERE hdr.ckdcust = ?";
+            $datausageBindings[] = $ckdcust;
+        }
+
+        $datausage = DB::select($datausageQuery, $datausageBindings);
+
+        if ($ckdcust !== null) {
+            $arrckdwh = DB::select("SELECT ckdwh,cnmwh FROM ymcustwarehouse WHERE ckdcust = ?", [$ckdcust]);
+        } else {
+            $arrckdwh = DB::select("SELECT ckdwh,cnmwh FROM ymcustwarehouse");
+        }
         $arrbasic=array();
         $arrbasic1=DB::select("SELECT ckdbrg,cbasic,cgrade,cwarna,nmd,nmr,npanjang, nlebar, ntinggi FROM mbasic");
         foreach ($arrbasic1 as $key => $value) {

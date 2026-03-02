@@ -890,7 +890,7 @@
                 const bodyTableStock = document.getElementById('reportTableBody');
                 // const selectElement = type === 'from' ? fromAddressSelect : toAddressSelect;
                 bodyTableStock.innerHTML = '<tr><td>Loading...</td></tr>';
-                let ckdcust = '{{ Auth::user()->ckdcust }}';
+                let ckdcust = @json((Auth::user()->isAdmin() || Auth::user()->isSuperAdmin()) ? null : Auth::user()->ckdcust);
                 try {
                     const response = await fetch(`/api/inventory/getData/` + (ckdcust ?? ''));
                     const data = await response.json();
