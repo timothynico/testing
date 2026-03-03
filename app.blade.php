@@ -3,11 +3,11 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, maximum-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png" />
-    <title>@yield('title', config('app.name', 'Yanarental'))</title>
+    <title>@yield('title', config('app.name', 'Yanapal'))</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -451,10 +451,6 @@
             font-size: 0.95rem;
         }
 
-        .mobile-user-icon {
-            display: none;
-        }
-
         .search-suggestions {
             position: absolute;
             top: 42px;
@@ -628,41 +624,6 @@
 
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
-            .mobile-nav-header {
-                min-height: 50px;
-            }
-
-            .mobile-navbar-brand {
-                position: static !important;
-                transform: none !important;
-                margin: 0 !important;
-                padding: 0.5rem 0;
-                border-right: none;
-                flex: 1 1 auto;
-                min-width: 0;
-                justify-content: center;
-            }
-
-            .mobile-navbar-brand span {
-                display: inline-block;
-                max-width: 115px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .mobile-nav-actions {
-                flex: 0 0 auto;
-            }
-
-            .mobile-user-details {
-                display: none !important;
-            }
-
-            .mobile-user-icon {
-                display: inline-block;
-            }
-
             .navbar-brand {
                 border-right: none;
                 margin: 0 auto;
@@ -859,6 +820,44 @@
         .driver-popover-prev-btn,
         .driver-popover-close-btn {
             text-shadow: none !important;
+        }
+
+        .js-feedback-link {
+            position: relative;
+        }
+
+        .feedback-badge {
+            position: absolute;
+            top: 4px;
+            right: -4px;
+
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+
+            background: #ff3b30; 
+            color: white;
+
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 18px;
+            text-align: center;
+
+            border-radius: 999px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+
+            animation: badgePop 0.2s ease-out;
+        }
+
+        @keyframes badgePop {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
     </style>
 
@@ -1175,9 +1174,37 @@
         });
     </script>
 
+    {{-- Check Unread Messages --}}
+    <script>
+        window.checkUnreadMessages = function () {
+            fetch('{{ route("chatrooms.unread") }}')
+                .then(res => res.json())
+                .then(data => {
+                    document.querySelectorAll('.js-feedback-link').forEach(el => {
+                        const badge = el.querySelector('.feedback-badge');
+
+                        if (data.hasUnread) {
+                            const count = data.count > 99 ? '99+' : data.count;
+
+                            if (!badge) {
+                                const span = document.createElement('span');
+                                span.classList.add('feedback-badge');
+                                span.innerText = count;
+                                el.appendChild(span);
+                            } else {
+                                badge.innerText = count;
+                            }
+                        } else {
+                            if (badge) badge.remove();
+                        }
+                    });
+                });
+        };
+    </script>
+
     @livewireScripts
-    @stack('styles')
     @stack('scripts')
+    @stack('styles')
 </body>
 
 </html>
