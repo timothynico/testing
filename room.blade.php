@@ -1,5 +1,5 @@
 <div>
-<div class="card border shadow-sm chat-layout" id="chatLayout" style="height: calc(100vh - 200px); min-height: 600px;">
+<div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
         <div class="feedback-sidebar border-end" id="feedbackSidebar">
@@ -120,16 +120,10 @@
                 <div class="chat-content">
                     {{-- Chat Header --}}
                     <div class="chat-header border-bottom p-3 bg-light">
-                        <div class="d-flex justify-content-between align-items-center gap-2">
-                            <div class="d-flex align-items-center gap-2 flex-grow-1">
-                                <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none"
-                                    wire:click="backToChatList" aria-label="{{ __('Back to chat list') }}">
-                                    <i class="bi bi-arrow-left"></i>
-                                </button>
-                                <div>
-                                    <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
-                                    <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
+                                <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
                             </div>
                             <div>
                                 <span class="badge text-capitalize
@@ -347,15 +341,9 @@
 
                             <div class="mb-2" wire:loading.remove wire:target="attachment">
                                 @if ($attachment)
-                                    <div class="attachment-preview">
-                                        <img src="{{ $attachment->temporaryUrl() }}"
-                                            class="img-thumbnail"
-                                            style="max-height:150px;">
-                                        <button type="button" class="btn btn-sm btn-danger attachment-remove"
-                                            wire:click="removeAttachment" aria-label="{{ __('Remove selected image') }}">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
+                                    <img src="{{ $attachment->temporaryUrl() }}"
+                                        class="img-thumbnail"
+                                        style="max-height:150px;">
                                 @endif
                             </div>
                             <div class="input-group mb-2">
@@ -753,26 +741,6 @@
             margin-top: 2px;
         }
 
-
-        .attachment-preview {
-            position: relative;
-            display: inline-block;
-        }
-
-        .attachment-remove {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            line-height: 1;
-        }
-
         /* Chat Input */
         .chat-input {
             background-color: #fff;
@@ -836,45 +804,32 @@
 
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
-            .card {
-                min-height: calc(100vh - 130px) !important;
-                height: calc(100vh - 130px) !important;
-            }
-
             .feedback-sidebar {
                 width: 100%;
                 max-width: 100%;
-                min-width: 100%;
-                flex: 1;
-            }
-
-            .chat-layout.mobile-chat-open .feedback-sidebar {
-                display: none;
-            }
-
-            .chat-container {
-                width: 100%;
-                flex: 1;
-                display: none;
-            }
-
-            .chat-layout.mobile-chat-open .chat-container,
-            .chat-container.show {
-                display: flex;
-            }
-
-            .chat-header {
-                position: sticky;
-                top: 0;
-                z-index: 2;
             }
 
             .resizer {
                 display: none;
             }
 
+            .chat-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1040;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+
+            .chat-container.show {
+                transform: translateX(0);
+            }
+
             .message-content {
-                max-width: 88%;
+                max-width: 80%;
             }
         }
     </style>
@@ -934,29 +889,6 @@
         };
 
         const scrollToBottom = (el) => requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
-
-        const syncMobilePane = () => {
-            const layout = document.getElementById('chatLayout');
-            const chatContainer = document.getElementById('chatContainer');
-            const component = Livewire.all()[0];
-            if (!layout || !chatContainer || !component) return;
-
-            const currentChatroomId = component.$wire?.chatRoomId
-                ?? component.snapshot?.data?.chatRoomId
-                ?? null;
-
-            const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
-
-            if (!isMobile) {
-                layout.classList.remove('mobile-chat-open');
-                chatContainer.classList.remove('show');
-                return;
-            }
-
-            const hasRoom = Boolean(currentChatroomId);
-            layout.classList.toggle('mobile-chat-open', hasRoom);
-            chatContainer.classList.toggle('show', hasRoom);
-        };
 
         const syncChatScrollPosition = () => {
             const chatMessages = document.getElementById('chatMessages');
@@ -1087,7 +1019,6 @@
             ?? component?.snapshot?.data?.chatRoomId
             ?? null;
         if (initialId) subscribeToChatroom(initialId);
-        syncMobilePane();
 
         subscribeAllVisible();
         setTimeout(() => subscribeAllVisible(), 500);
@@ -1106,17 +1037,13 @@
         Livewire.on('chatRoomSelected', ({ chatRoomId }) => {
             console.log('chatRoomSelected:', chatRoomId);
             subscribeToChatroom(chatRoomId);
-            syncMobilePane();
         });
 
         // Setiap kali Livewire re-render
         Livewire.hook('morph.updated', () => {
             syncChatScrollPosition();
             subscribeAllVisible();
-            syncMobilePane();
         });
-
-        window.addEventListener('resize', syncMobilePane);
     }
 </script>
 @endpush
