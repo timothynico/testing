@@ -824,9 +824,54 @@
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
 
+            .card {
+                min-height: 100vh !important;
+                height: 100vh !important;
+            }
+
             .feedback-sidebar {
                 width: 100%;
                 max-width: 100%;
+            }
+
+            .sidebar-header {
+                padding: 0.9rem !important;
+            }
+
+            .sidebar-header .form-control,
+            .sidebar-header .form-select,
+            .sidebar-header .input-group-text {
+                font-size: 0.95rem;
+                padding-top: 0.55rem;
+                padding-bottom: 0.55rem;
+            }
+
+            .feedback-item {
+                padding: 12px 14px;
+                min-height: 90px;
+            }
+
+            .feedback-title {
+                font-size: 1rem;
+                line-height: 1.35;
+            }
+
+            .feedback-user,
+            .feedback-description,
+            .feedback-time {
+                font-size: 0.875rem;
+                line-height: 1.35;
+            }
+
+            .feedback-menu {
+                font-size: 0.78rem;
+                padding: 3px 7px;
+            }
+
+            .unread-badge {
+                font-size: 0.75rem;
+                min-width: 20px;
+                padding: 2px 7px;
             }
 
             .resizer {
@@ -853,6 +898,34 @@
                 padding-bottom: 80px;
             }
 
+            .system-message {
+                font-size: 0.95rem;
+                margin: 18px 0;
+            }
+
+            .system-card {
+                max-width: 94%;
+                padding: 12px;
+            }
+
+            .system-card .fs-6,
+            .system-card .fs-8,
+            .members-label,
+            .member-name,
+            .member-role {
+                font-size: 0.9rem !important;
+                line-height: 1.35;
+            }
+
+            .date-separator {
+                font-size: 0.85rem;
+            }
+
+            .message {
+                padding: 0 0.75rem;
+                margin-bottom: 14px;
+            }
+
             .chat-input {
                 position: fixed;
                 bottom: 0;
@@ -863,7 +936,30 @@
             }
 
             .message-content {
-                max-width: 85%;
+                max-width: 92%;
+            }
+
+            .message-sender,
+            .message-time {
+                font-size: 0.85rem;
+            }
+
+            .message-bubble {
+                padding: 10px 13px;
+                border-radius: 10px;
+            }
+
+            .message-bubble p {
+                font-size: 1rem;
+                line-height: 1.5;
+            }
+
+            .chat-input .form-control,
+            .chat-input .btn,
+            .chat-input .btn-sm,
+            .chat-input .form-text,
+            .chat-input small {
+                font-size: 0.95rem;
             }
         }
     </style>
