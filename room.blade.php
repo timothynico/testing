@@ -11,7 +11,7 @@
                     </span>
                     <input type="text" class="form-control border-start-0"
                         placeholder="{{ __('Search feedback...') }}" id="searchFeedback"
-                        wire:model.live.debounce.300ms="search">
+                        wire:model.live="search">
                 </div>
 
                 <div class="d-flex gap-2">
@@ -189,7 +189,9 @@
                                             <li class="member-item">
                                                 <span class="member-name fs-6">
                                                     {{ $member->name }}
-                                                    @if($member->customer?->cnmcust)
+                                                    @if($member->company?->cnmcomp)
+                                                        - {{ $member->company->cnmcomp }}
+                                                    @elseif($member->customer?->cnmcust)
                                                         - {{ $member->customer->cnmcust }}
                                                     @endif
                                                     @if($member->customer_role == 'warehouse_pic')
@@ -235,13 +237,19 @@
                         @endif
 
                         {{-- Messages grouped by date --}}
-                        @if(empty($groupedMessages))
+                        @php
+                            $grouped = collect($messages)->groupBy(function($m) {
+                                return \Carbon\Carbon::parse($m['created_at'])->toDateString();
+                            });
+                        @endphp
+
+                        @if($grouped->isEmpty())
                             <div class="system-message mt-3">
                                 <i class="bi bi-chat-dots px-2"></i>
                                 {{ __('No messages yet. Start the conversation!') }}
                             </div>
                         @else
-                            @foreach($groupedMessages as $date => $msgs)
+                            @foreach($grouped as $date => $msgs)
                                 @php
                                     $dt = \Carbon\Carbon::parse($date);
                                     $label = $dt->isToday() ? __('Today') : ($dt->isYesterday() ? __('Yesterday') : $dt->format('d/m/y'));
@@ -354,7 +362,7 @@
                                 <input type="text" 
                                     class="form-control"
                                     placeholder="{{ __('Type a message...') }}"
-                                    wire:model.defer="newMessage"
+                                    wire:model="newMessage"
                                     autocomplete="off"
                                     {{ $isTicketLocked ? 'disabled' : '' }}>
 
@@ -912,6 +920,7 @@
         };
 
         // ── Reverb subscribe ──
+        let activeChatroomChannel = null;
         const subscribedChannels = new Set();
 
         const subscribeToChannel = (chatroomId) => {
@@ -922,8 +931,9 @@
             subscribedChannels.add(id);
 
             window.Echo.private(`chatroom.${id}`)
-                .listen('.chat.message.sent', (event) => {
+                .listen('.chat.message.sent', () => {
                     window.checkUnreadMessages();
+                    console.log('Message received from chatroom:', id);
                     const component = Livewire.all()[0];
                     if (!component) return;
 
@@ -932,21 +942,23 @@
                         ?? null;
 
                     if (parseInt(activeChatroom) === id) {
-                        component.$wire.call('messageReceived', event);
-                        component.$wire.call('markAsRead');
+                        component.$wire.call('refreshChatState');
                     } else {
                         component.$wire.call('$refresh');
                     }
                 })
-                .listen('.chat.status.updated', () => {
+                .listen('.chat.status.updated', (e) => {
+                    console.log('Status updated for chatroom:', id, e.status);
                     const component = Livewire.all()[0];
                     if (component) component.$wire.call('$refresh');
                 })
                 .error((err) => console.error('Channel error:', err));
 
+            console.log('Subscribed to chatroom:', id);
         };
 
         const subscribeToChatroom = (chatroomId) => {
+            activeChatroomChannel = parseInt(chatroomId);
             window.checkUnreadMessages();
             subscribeToChannel(chatroomId);
         };
@@ -966,10 +978,14 @@
             subscribedChannels.add(channelName);
 
             window.Echo.private(channelName)
-                .listen('.chatroom.created', () => {
+                .listen('.chatroom.created', (e) => {
+                    console.log('New chatroom created:', e);
                     const component = Livewire.all()[0];
                     window.checkUnreadMessages();
                     if (component) component.$wire.call('refreshSidebar');
+                })
+                .subscribed(() => {
+                    console.log('Subscribed to user channel:', channelName);
                 })
                 .error((err) => {
                     console.error('User channel error:', err);
@@ -981,14 +997,17 @@
         // Tunggu Echo ready baru subscribe — retry setiap 300ms maksimal 20x (6 detik)
         const waitForEchoThenSubscribe = (attempt = 0) => {
             if (window.Echo?.connector?.pusher?.connection?.state === 'connected') {
+                console.log('Echo connected, subscribing user channel...');
                 subscribeToUserChannel();
                 return;
             }
 
             if (attempt >= 20) {
+                console.warn('Echo never connected after 6s, skip user channel subscribe');
                 return;
             }
 
+            console.log(`Waiting for Echo... attempt ${attempt + 1}`);
             setTimeout(() => waitForEchoThenSubscribe(attempt + 1), 300);
         };
 
@@ -1016,17 +1035,14 @@
 
         // Listen event pindah chatroom
         Livewire.on('chatRoomSelected', ({ chatRoomId }) => {
+            console.log('chatRoomSelected:', chatRoomId);
             subscribeToChatroom(chatRoomId);
         });
 
         // Setiap kali Livewire re-render
-        let morphUpdatedTimeout = null;
         Livewire.hook('morph.updated', () => {
             syncChatScrollPosition();
-            clearTimeout(morphUpdatedTimeout);
-            morphUpdatedTimeout = setTimeout(() => {
-                subscribeAllVisible();
-            }, 100);
+            subscribeAllVisible();
         });
     }
 </script>
