@@ -341,9 +341,17 @@
 
                             <div class="mb-2" wire:loading.remove wire:target="attachment">
                                 @if ($attachment)
-                                    <img src="{{ $attachment->temporaryUrl() }}"
-                                        class="img-thumbnail"
-                                        style="max-height:150px;">
+                                    <div class="d-inline-flex align-items-start gap-2">
+                                        <img src="{{ $attachment->temporaryUrl() }}"
+                                            class="img-thumbnail"
+                                            style="max-height:150px;">
+                                        <button type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            wire:click="removeAttachment"
+                                            title="{{ __('Cancel image') }}">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
                                 @endif
                             </div>
                             <div class="input-group mb-2">
@@ -352,6 +360,7 @@
                                 <label class="btn btn-outline-secondary mb-0">
                                     <i class="bi bi-image"></i>
                                     <input type="file"
+                                        id="chatAttachmentInput"
                                         wire:model="attachment"
                                         accept="image/*"
                                         hidden
@@ -849,6 +858,12 @@
 
         Livewire.on('open-status-modal', () => statusModal?.show());
         Livewire.on('close-status-modal', () => statusModal?.hide());
+        Livewire.on('reset-file-input', () => {
+            const fileInput = document.getElementById('chatAttachmentInput');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+        });
 
         setTimeout(() => {
             if (window.Echo?.socketId()) {

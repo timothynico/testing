@@ -64,6 +64,7 @@ class Room extends Component
     public function removeAttachment()
     {
         $this->reset('attachment');
+        $this->dispatch('reset-file-input');
     }
 
     public function sendMessage()
