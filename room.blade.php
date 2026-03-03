@@ -2,7 +2,7 @@
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
-        <div class="feedback-sidebar border-end {{ $chatRoomId ? 'mobile-hidden' : 'mobile-visible' }}" id="feedbackSidebar">
+        <div class="feedback-sidebar border-end" id="feedbackSidebar">
             {{-- Search & Filter Header --}}
             <div class="sidebar-header border-bottom p-3">
                 <div class="input-group input-group-sm mb-2">
@@ -105,7 +105,7 @@
         <div class="resizer" id="resizer"></div>
 
         {{-- Right Side - Chat Content --}}
-        <div class="chat-container flex-grow-1 {{ $chatRoomId ? 'mobile-active' : 'mobile-inactive' }}" id="chatContainer">
+        <div class="chat-container flex-grow-1" id="chatContainer">
             @if (!$chatRoomId)
                 {{-- Empty State --}}
                 <div class="empty-state">
@@ -120,30 +120,34 @@
                 <div class="chat-content">
                     {{-- Chat Header --}}
                     <div class="chat-header border-bottom p-3 bg-light">
-                        <div class="d-flex justify-content-between align-items-center gap-2">
-                            <div class="d-flex align-items-start gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none mt-1"
-                                    wire:click="backToChatRoomList">
+                        <div class="d-flex align-items-center justify-content-between">
+
+                            {{-- Back button mobile --}}
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-light d-lg-none"
+                                    wire:click="backToChatRoomList"
+                                    id="mobileBackButton">
                                     <i class="bi bi-arrow-left"></i>
                                 </button>
+
                                 <div>
-                                    <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
-                                    <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
+                                    <h6 class="mb-0">
+                                        {{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }}
+                                    </h6>
+                                    <small class="text-muted">
+                                        {{ $chatRoom->applicant->name ?? 'Unknown' }}
+                                    </small>
                                 </div>
                             </div>
-                            <div>
-                                <span class="badge text-capitalize
-                                    @if ($chatRoom->cstatus === 'in_progress')
-                                        bg-warning
-                                    @elseif ($chatRoom->cstatus === 'resolved')
-                                        bg-success
-                                    @elseif ($chatRoom->cstatus === 'closed')
-                                        bg-danger
-                                    @endif
-                                ">
-                                    {{ ucfirst(str_replace('_', ' ', $chatRoom->cstatus)) }}
-                                </span>
-                            </div>
+
+                            <span class="badge text-capitalize
+                                @if ($chatRoom->cstatus === 'in_progress') bg-warning
+                                @elseif ($chatRoom->cstatus === 'resolved') bg-success
+                                @elseif ($chatRoom->cstatus === 'closed') bg-danger
+                                @endif
+                            ">
+                                {{ ucfirst(str_replace('_', ' ', $chatRoom->cstatus)) }}
+                            </span>
                         </div>
                     </div>
 
@@ -819,30 +823,47 @@
 
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
+
             .feedback-sidebar {
                 width: 100%;
                 max-width: 100%;
-            }
-
-            .feedback-sidebar.mobile-hidden {
-                display: none;
-            }
-
-            .chat-container {
-                display: none;
-                width: 100%;
-            }
-
-            .chat-container.mobile-active {
-                display: flex;
             }
 
             .resizer {
                 display: none;
             }
 
+            .chat-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1050;
+                background: #fff;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+
+            .chat-container.show {
+                transform: translateX(0);
+            }
+
+            .chat-messages {
+                padding-bottom: 80px;
+            }
+
+            .chat-input {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 1060;
+                background: #fff;
+            }
+
             .message-content {
-                max-width: 80%;
+                max-width: 85%;
             }
         }
     </style>
@@ -907,7 +928,19 @@
             messageCountByChatroom: {},
         };
 
-        const scrollToBottom = (el) => requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
+        const scrollToBottom = (force = false) => {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+
+            const isNearBottom =
+                chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
+
+            if (force || isNearBottom) {
+                requestAnimationFrame(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                });
+            }
+        };
 
         const syncChatScrollPosition = () => {
             const chatMessages = document.getElementById('chatMessages');
@@ -1036,6 +1069,12 @@
             ?? component?.snapshot?.data?.chatRoomId
             ?? null;
         if (initialId) subscribeToChatroom(initialId);
+        
+        if (initialId) {
+            setTimeout(() => {
+                scrollToBottom(true);
+            }, 100);
+        }
 
         subscribeAllVisible();
         setTimeout(() => subscribeAllVisible(), 500);
@@ -1052,12 +1091,34 @@
 
         // Listen event pindah chatroom
         Livewire.on('chatRoomSelected', ({ chatRoomId }) => {
+                setTimeout(() => {
+                    scrollToBottom(true);
+                }, 50);
             console.log('chatRoomSelected:', chatRoomId);
             subscribeToChatroom(chatRoomId);
         });
 
-        // Setiap kali Livewire re-render
+        // Mobile slide toggle
         Livewire.hook('morph.updated', () => {
+            const chatContainer = document.getElementById('chatContainer');
+            const component = Livewire.all()[0];
+
+            if (!chatContainer || !component) return;
+
+            const chatRoomId = component.$wire?.chatRoomId
+                ?? component.snapshot?.data?.chatRoomId
+                ?? null;
+
+            if (window.innerWidth <= 991) {
+                if (chatRoomId) {
+                    chatContainer.classList.add('show');
+                } else {
+                    chatContainer.classList.remove('show');
+                }
+            }
+
+            scrollToBottom();
+
             syncChatScrollPosition();
             subscribeAllVisible();
         });
