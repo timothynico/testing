@@ -2,7 +2,7 @@
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
-        <div class="feedback-sidebar border-end" id="feedbackSidebar">
+        <div class="feedback-sidebar border-end {{ $chatRoomId ? 'mobile-hidden' : 'mobile-visible' }}" id="feedbackSidebar">
             {{-- Search & Filter Header --}}
             <div class="sidebar-header border-bottom p-3">
                 <div class="input-group input-group-sm mb-2">
@@ -105,7 +105,7 @@
         <div class="resizer" id="resizer"></div>
 
         {{-- Right Side - Chat Content --}}
-        <div class="chat-container flex-grow-1" id="chatContainer">
+        <div class="chat-container flex-grow-1 {{ $chatRoomId ? 'mobile-active' : 'mobile-inactive' }}" id="chatContainer">
             @if (!$chatRoomId)
                 {{-- Empty State --}}
                 <div class="empty-state">
@@ -120,10 +120,16 @@
                 <div class="chat-content">
                     {{-- Chat Header --}}
                     <div class="chat-header border-bottom p-3 bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
-                                <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div class="d-flex align-items-start gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none mt-1"
+                                    wire:click="backToChatRoomList">
+                                    <i class="bi bi-arrow-left"></i>
+                                </button>
+                                <div>
+                                    <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
+                                    <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
+                                </div>
                             </div>
                             <div>
                                 <span class="badge text-capitalize
@@ -818,23 +824,21 @@
                 max-width: 100%;
             }
 
-            .resizer {
+            .feedback-sidebar.mobile-hidden {
                 display: none;
             }
 
             .chat-container {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 1040;
-                transform: translateX(100%);
-                transition: transform 0.3s ease;
+                display: none;
+                width: 100%;
             }
 
-            .chat-container.show {
-                transform: translateX(0);
+            .chat-container.mobile-active {
+                display: flex;
+            }
+
+            .resizer {
+                display: none;
             }
 
             .message-content {
