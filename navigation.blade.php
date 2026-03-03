@@ -46,7 +46,7 @@ NAVIGATION COMPONENT
         ============================================================================ --}}
         <div class="d-lg-none w-100">
             {{-- Mobile Header Row --}}
-            <div class="mobile-nav-header d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center justify-content-between">
                 {{-- Hamburger Menu (Left) --}}
                 <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav">
                     <span class="navbar-toggler-icon"></span>
@@ -54,14 +54,14 @@ NAVIGATION COMPONENT
 
                 {{-- Logo + Title (Center) --}}
                 <a href="{{ auth()->user()->isAdmin() ? route('dashboard') : route('dashboard.customer') }}"
-                    class="navbar-brand mobile-navbar-brand text-center mx-auto">
+                    class="navbar-brand position-absolute top-50 start-50 translate-middle text-center">
                     @if (file_exists(public_path('images/logo.png')))
                         <img src="{{ asset('images/logo.png') }}" alt="{{ config('app.name') }}">
                     @endif
                     <span>{{ config('app.name', 'Yanapal') }}</span>
                 </a>
 
-                <div class="mobile-nav-actions d-flex align-items-center gap-2 ms-auto">
+                <div class="d-flex align-items-center gap-2">
                     {{-- Notifications (Mobile) --}}
                     <div class="dropdown">
                         <a class="nav-link position-relative p-0" href="#" data-bs-toggle="dropdown">
@@ -159,8 +159,7 @@ NAVIGATION COMPONENT
                     <div class="dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center p-0" href="#"
                             data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle fs-5 mobile-user-icon"></i>
-                            <div class="d-flex flex-column lh-1 text-end mobile-user-details">
+                            <div class="d-flex flex-column lh-1 text-end">
                                 <span class="fw-semibold small mobile-username">{{ Auth::user()->name }}</span>
                                 @if ($cnmcust)
                                     <small class="text-muted" style="font-size: 0.7rem;">{{ $cnmcust }}</small>
