@@ -23,9 +23,19 @@ NAVIGATION COMPONENT
 
     // Get user role
     $userRole = Auth::user()->role ?? 'user';
-    $isAdmin = $userRole === 'admin';
+    $isAdmin = $userRole === 'admin' || $userRole === 'superadmin';
     $isWarehouseYs = $userRole === 'warehouseys';
     $isWarehousePic = Auth::user()->customer_role === 'warehouse_pic';
+
+    // Customer company name (only for customer users)
+    $cnmcust = Auth::user()->nidcust ? optional(Auth::user()->customer)->cnmcust : null;
+
+    // Customer role label + warehouse name (for warehouse_pic)
+    $customerRole = Auth::user()->customer_role;
+    $customerRoleLabel = $customerRole ? Auth::user()->getCustomerRoleLabel() : null;
+    $cnmwh = ($isWarehousePic && Auth::user()->nidwh)
+        ? optional(\App\Models\CustomerWarehouse::find(Auth::user()->nidwh))->cnmwh
+        : null;
 @endphp
 
 <nav class="navbar navbar-expand-lg navbar-light">
@@ -48,7 +58,7 @@ NAVIGATION COMPONENT
                     @if (file_exists(public_path('images/logo.png')))
                         <img src="{{ asset('images/logo.png') }}" alt="{{ config('app.name') }}">
                     @endif
-                    <span>{{ config('app.name', 'Yanarental') }}</span>
+                    <span>{{ config('app.name', 'Yanapal') }}</span>
                 </a>
 
                 <div class="d-flex align-items-center gap-2">
@@ -57,7 +67,7 @@ NAVIGATION COMPONENT
                         <a class="nav-link position-relative p-0" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-bell fs-5"></i>
                             @if ($notificationsUnreadCount > 0)
-                                <span class="position-absolute badge rounded-pill bg-danger notification-badge"
+                                <span class="position-absolute notification-badge"
                                     style="top: 4px; right: 4px;">
                                     {{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}
                                 </span>
@@ -88,6 +98,12 @@ NAVIGATION COMPONENT
                                                     <i class="bi bi-truck-front-fill"></i>
                                                 @elseif ($notification['type'] == 'arrival')
                                                     <i class="bi bi-check-circle-fill"></i>
+                                                @elseif ($notification['type'] == 'created grn')
+                                                    <i class="bi bi-file-earmark-check-fill"></i>
+                                                @elseif ($notification['type'] == 'created order request')
+                                                    <i class="bi bi-cart-plus-fill"></i>
+                                                @elseif ($notification['type'] == 'created return request')
+                                                    <i class="bi bi-arrow-left-circle-fill"></i>
                                                 @endif
                                             </div>
                                             <div class="notification-content">
@@ -121,7 +137,7 @@ NAVIGATION COMPONENT
                             <li>
                                 <a class="dropdown-item {{ app()->getLocale() === 'en' ? 'active' : '' }}"
                                     href="{{ route('lang.switch', 'en') }}">
-                                    <span class="me-2">🇬🇧</span> English
+                                    <span class="me-2">en</span> English
                                 </a>
                             </li>
                             <li>
@@ -143,9 +159,17 @@ NAVIGATION COMPONENT
                     <div class="dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center p-0" href="#"
                             data-bs-toggle="dropdown">
-                            <span class="fw-semibold small mobile-username">
-                                {{ Auth::user()->name }}
-                            </span>
+                            <div class="d-flex flex-column lh-1 text-end">
+                                <span class="fw-semibold small mobile-username">{{ Auth::user()->name }}</span>
+                                @if ($cnmcust)
+                                    <small class="text-muted" style="font-size: 0.7rem;">{{ $cnmcust }}</small>
+                                @endif
+                                @if ($customerRoleLabel)
+                                    <small class="text-muted" style="font-size: 0.7rem;">
+                                        {{ $customerRoleLabel }}@if ($cnmwh) &mdash; {{ $cnmwh }}@endif
+                                    </small>
+                                @endif
+                            </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
@@ -192,7 +216,7 @@ NAVIGATION COMPONENT
                 @if (file_exists(public_path('images/logo.png')))
                     <img src="{{ asset('images/logo.png') }}" alt="{{ config('app.name') }}">
                 @endif
-                <span>{{ config('app.name', 'Yanarental') }}</span>
+                <span>{{ config('app.name', 'Yanapal') }}</span>
             </a>
 
             {{-- Desktop Menu Items (Reuses shared menu structure) --}}
@@ -219,7 +243,7 @@ NAVIGATION COMPONENT
                         data-bs-toggle="dropdown">
                         <i class="bi bi-bell fs-5"></i>
                         @if ($notificationsUnreadCount > 0)
-                            <span class="position-absolute badge rounded-pill bg-danger"
+                            <span class="position-absolute notification-badge"
                                 style="top: 4px; right: 4px;">
                                 {{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}
                             </span>
@@ -255,6 +279,38 @@ NAVIGATION COMPONENT
                                                 <i class="bi bi-truck-front-fill"></i>
                                             @elseif ($notification->ctype == 'arrival')
                                                 <i class="bi bi-check-circle-fill"></i>
+                                            @elseif ($notification->ctype == 'created grn')
+                                                <i class="bi bi-file-earmark-check-fill"></i>
+                                            @elseif ($notification->ctype == 'created order request')
+                                                    <i class="bi bi-cart-plus-fill"></i>
+                                            @elseif ($notification->ctype == 'created return request')
+                                                <i class="bi bi-arrow-left-circle-fill"></i>
+                                            @elseif ($notification->ctype == 'approved order request')
+                                                <i class="bi bi-check-circle-fill"></i>
+                                            @elseif ($notification->ctype == 'rejected order request')
+                                                <i class="bi bi-x-circle-fill"></i>
+                                            @elseif ($notification->ctype == 'approved return request')
+                                                <i class="bi bi-check-circle-fill"></i>
+                                            @elseif ($notification->ctype == 'rejected return request')
+                                                <i class="bi bi-x-circle-fill"></i>
+
+                                            {{-- ORDER RESCHEDULE --}}
+                                            @elseif ($notification->ctype == 'rescheduled order reschedule')
+                                                <i class="bi bi-calendar-event-fill"></i>
+
+                                            @elseif ($notification->ctype == 'reserved order reschedule')
+                                                <i class="bi bi-calendar-check-fill"></i>
+
+                                            @elseif ($notification->ctype == 'cancelled order reschedule')
+                                                <i class="bi bi-calendar-x-fill"></i>
+
+                                            {{-- RETURN RESCHEDULE --}}
+                                            @elseif ($notification->ctype == 'rescheduled return reschedule')
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            @elseif ($notification->ctype == 'reserved return reschedule')
+                                                <i class="bi bi-calendar-check-fill"></i>
+                                            @elseif ($notification->ctype == 'cancelled return reschedule')
+                                                <i class="bi bi-calendar-x-fill"></i>
                                             @endif
                                         </div>
                                         <div class="notification-content">
@@ -305,19 +361,19 @@ NAVIGATION COMPONENT
                         <li>
                             <a class="dropdown-item {{ app()->getLocale() === 'en' ? 'active' : '' }}"
                                 href="{{ route('lang.switch', 'en') }}">
-                                <span class="me-2">🇬🇧</span> English
+                                <span class="me-2">EN</span> English
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item {{ app()->getLocale() === 'id' ? 'active' : '' }}"
                                 href="{{ route('lang.switch', 'id') }}">
-                                <span class="me-2">🇮🇩</span> Indonesia
+                                <span class="me-2">ID</span> Indonesia
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item {{ app()->getLocale() === 'cn' ? 'active' : '' }}"
                                 href="{{ route('lang.switch', 'cn') }}">
-                                <span class="me-2">cn</span> Chinese
+                                <span class="me-2">CN</span> Chinese
                             </a>
                         </li>
                     </ul>
@@ -331,7 +387,17 @@ NAVIGATION COMPONENT
                             class="rounded-circle text-white d-flex align-items-center justify-content-center me-2 user-avatar">
                             {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                         </div>
-                        <span>{{ Auth::user()->name }}</span>
+                        <div class="d-flex flex-column lh-1">
+                            <span>{{ Auth::user()->name }}</span>
+                            @if ($cnmcust)
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ $cnmcust }}</small>
+                            @endif
+                            @if ($customerRoleLabel)
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {{ $customerRoleLabel }}@if ($cnmwh) &mdash; {{ $cnmwh }}@endif
+                                </small>
+                            @endif
+                        </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
@@ -409,21 +475,24 @@ NAVIGATION COMPONENT
         </ul>
     </li>
 
-    @if (!$isWarehouseYs && !$isWarehousePic)
-        {{-- Finance --}}
-        <li class="nav-item dropdown" data-roles="admin" data-tour="menu-finance">
-            <a class="nav-link dropdown-toggle {{ $isFinance ? 'active' : '' }}" href="#"
-                data-bs-toggle="dropdown">
-                <i class="bi bi-cash-coin"></i>{{ __('Finance') }}
-            </a>
-            <ul class="dropdown-menu">
+
+    {{-- Finance --}}
+    <li class="nav-item dropdown" data-roles="admin" data-tour="menu-finance">
+        <a class="nav-link dropdown-toggle {{ $isFinance ? 'active' : '' }}" href="#"
+            data-bs-toggle="dropdown">
+            <i class="bi bi-cash-coin"></i>{{ __('Finance') }}
+        </a>
+        <ul class="dropdown-menu">
+            @if (!$isWarehouseYs && !$isWarehousePic)
                 <li><a class="dropdown-item" href="{{ route('invoice.index') }}" data-keywords="invoice">
                         <i class="bi bi-receipt"></i>{{ __('Invoice') }}</a></li>
-                <li><a class="dropdown-item" href="{{ route('usage.index') }}"
-                        data-keywords="Warehouse Monthly Usage Check">
-                        <i class="bi bi-clipboard-check"></i>{{ __('Monthly Usage') }}</a></li>
-            </ul>
-        </li>
+            @endif
+            <li><a class="dropdown-item" href="{{ route('usage.index') }}"
+                    data-keywords="Warehouse Monthly Usage Check">
+                    <i class="bi bi-clipboard-check"></i>{{ __('Monthly Usage') }}</a></li>
+        </ul>
+    </li>
+
         {{-- Report --}}
         <li class="nav-item dropdown" data-roles="admin" data-tour="menu-report">
             <a class="nav-link dropdown-toggle {{ $isReports ? 'active' : '' }}" href="#"
@@ -431,9 +500,11 @@ NAVIGATION COMPONENT
                 <i class="bi bi-file-earmark-medical"></i>{{ __('Report') }}
             </a>
             <ul class="dropdown-menu">
+                @if (!$isWarehouseYs && !$isWarehousePic)
                 <li><a class="dropdown-item" href="{{ route('report.account_transaction') }}"
                         data-keywords="stock movement report">
                         <i class="bi bi-box-seam"></i>{{ __('Account Transaction') }}</a></li>
+                @endif
                 <li><a class="dropdown-item" href="{{ route('report.stock_movement') }}"
                         data-keywords="stock movement report">
                         <i class="bi bi-box-seam"></i>{{ __('Stock Movement') }}</a></li>
@@ -442,7 +513,9 @@ NAVIGATION COMPONENT
                         <i class="bi bi-postcard"></i>{{ __('On-hand Inventory') }}</a></li>
             </ul>
         </li>
-    @endif
+    {{-- 
+
+    --}}
 
     {{-- Management --}}
     <li class="nav-item dropdown" data-roles="admin" data-tour="menu-management">
@@ -471,9 +544,14 @@ NAVIGATION COMPONENT
 
     {{-- Feedback --}}
     <li class="nav-item">
-        <a class="nav-link js-feedback-link {{ request()->routeIs('feedback.*') ? 'active' : '' }}"
-            href="{{ route('chatrooms.index') }}" data-keywords="help center support faq glossary guide">
-            <i class="bi bi-chat-dots"></i>{{ __('Feedback') }}
+        <a class="nav-link js-feedback-link position-relative {{ request()->routeIs('feedback.*') ? 'active' : '' }}"
+            href="{{ route('chatrooms.index') }}"
+            data-keywords="help center support faq glossary guide">
+
+            <i class="bi bi-chat-dots"></i>
+            {{ __('Feedback') }}
+
+            {{-- Badge will be injected by JS --}}
         </a>
     </li>
 
@@ -516,19 +594,32 @@ NAVIGATION COMPONENT
     <style>
         /* ── Search Box ── */
         .search-box input {
-            max-width: 500px;
+            width: 300px;
+            max-width: 300px;
         }
 
         /* ── Notification Badge ── */
         .notification-badge {
-            font-size: 0.6rem;
-            padding: 0.2em 0.4em;
-            min-width: 16px;
-            height: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform: translate(-25%, -25%);
+            position: absolute;
+            top: 4px;
+            right: -4px;
+
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+
+            background: #ff3b30; 
+            color: white;
+
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 18px;
+            text-align: center;
+
+            border-radius: 999px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+
+            animation: badgePop 0.2s ease-out;
         }
 
         /* ── Notification Dropdown Container ── */
@@ -549,42 +640,6 @@ NAVIGATION COMPONENT
             z-index: 1;
             font-weight: 600;
             color: #212529;
-        }
-
-        .js-feedback-link {
-            position: relative;
-        }
-
-        .js-feedback-link.feedback-alert {
-            color: #dc3545 !important;
-        }
-
-        .js-feedback-link.feedback-alert i {
-            color: inherit;
-        }
-
-        .js-feedback-link.feedback-alert::after {
-            content: '';
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 8px;
-            height: 8px;
-            background-color: #dc3545;
-            border-radius: 50%;
-            animation: pulseDot 1.8s infinite;
-        }
-
-        @keyframes pulseDot {
-            0% {
-                box-shadow: 0 0 0 0 rgba(220,53,69,0.5); 
-            }
-            70% {
-                box-shadow: 0 0 0 8px rgba(220,53,69,0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(220,53,69,0);
-            }
         }
 
         /* Mark all as read link */
@@ -725,6 +780,9 @@ NAVIGATION COMPONENT
 
                 const isMobile = window.innerWidth < 992;
                 isMobile ? initMobileNav() : initDesktopNav();
+
+                // Check new chat
+                window.checkUnreadMessages(); 
             });
 
             function setupFeedbackAlertListener() {
@@ -745,8 +803,11 @@ NAVIGATION COMPONENT
                 };
 
                 chatRoomIds.forEach((roomId) => {
-                    window.Echo.channel(`chatroom.${roomId}`)
-                        .listen('.chat.message.sent', setFeedbackAlert);
+                    window.Echo.private(`chatroom.${roomId}`)
+                        .listen('.chat.message.sent', (event) => {
+                            console.log("Halo");
+                            checkUnreadMessages();
+                        });
                 });
             }
 
