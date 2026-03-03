@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.6, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png" />
@@ -451,6 +451,10 @@
             font-size: 0.95rem;
         }
 
+        .mobile-user-icon {
+            display: none;
+        }
+
         .search-suggestions {
             position: absolute;
             top: 42px;
@@ -624,6 +628,41 @@
 
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
+            .mobile-nav-header {
+                min-height: 50px;
+            }
+
+            .mobile-navbar-brand {
+                position: static !important;
+                transform: none !important;
+                margin: 0 !important;
+                padding: 0.5rem 0;
+                border-right: none;
+                flex: 1 1 auto;
+                min-width: 0;
+                justify-content: center;
+            }
+
+            .mobile-navbar-brand span {
+                display: inline-block;
+                max-width: 115px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-nav-actions {
+                flex: 0 0 auto;
+            }
+
+            .mobile-user-details {
+                display: none !important;
+            }
+
+            .mobile-user-icon {
+                display: inline-block;
+            }
+
             .navbar-brand {
                 border-right: none;
                 margin: 0 auto;
