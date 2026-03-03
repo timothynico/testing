@@ -52,6 +52,20 @@ class Room extends Component
         $this->dispatch('chatRoomSelected', chatRoomId: $id);
     }
 
+    public function backToChatList()
+    {
+        $this->chatRoomId = null;
+        $this->chatRoom = null;
+        $this->messages = [];
+        $this->groupedMessages = [];
+        $this->firstUnreadMessageId = null;
+    }
+
+    public function removeAttachment()
+    {
+        $this->reset('attachment');
+    }
+
     public function sendMessage()
     {
         if (!$this->chatRoomId) {
