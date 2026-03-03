@@ -46,7 +46,7 @@ NAVIGATION COMPONENT
         ============================================================================ --}}
         <div class="d-lg-none w-100">
             {{-- Mobile Header Row --}}
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center justify-content-between mobile-header-row">
                 {{-- Hamburger Menu (Left) --}}
                 <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav">
                     <span class="navbar-toggler-icon"></span>
@@ -54,14 +54,14 @@ NAVIGATION COMPONENT
 
                 {{-- Logo + Title (Center) --}}
                 <a href="{{ auth()->user()->isAdmin() ? route('dashboard') : route('dashboard.customer') }}"
-                    class="navbar-brand position-absolute top-50 start-50 translate-middle text-center">
+                    class="navbar-brand position-absolute top-50 start-50 translate-middle text-center mobile-navbar-brand">
                     @if (file_exists(public_path('images/logo.png')))
                         <img src="{{ asset('images/logo.png') }}" alt="{{ config('app.name') }}">
                     @endif
                     <span>{{ config('app.name', 'Yanapal') }}</span>
                 </a>
 
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 mobile-header-actions">
                     {{-- Notifications (Mobile) --}}
                     <div class="dropdown">
                         <a class="nav-link position-relative p-0" href="#" data-bs-toggle="dropdown">
@@ -157,9 +157,9 @@ NAVIGATION COMPONENT
 
                     {{-- User Dropdown (Right) --}}
                     <div class="dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center p-0" href="#"
+                        <a class="nav-link dropdown-toggle d-flex align-items-center p-0 mobile-user-toggle" href="#"
                             data-bs-toggle="dropdown">
-                            <div class="d-flex flex-column lh-1 text-end">
+                            <div class="d-flex flex-column lh-1 text-end mobile-user-meta">
                                 <span class="fw-semibold small mobile-username">{{ Auth::user()->name }}</span>
                                 @if ($cnmcust)
                                     <small class="text-muted" style="font-size: 0.7rem;">{{ $cnmcust }}</small>
@@ -170,6 +170,7 @@ NAVIGATION COMPONENT
                                     </small>
                                 @endif
                             </div>
+                            <i class="bi bi-person-circle fs-5 mobile-user-icon" aria-hidden="true"></i>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
