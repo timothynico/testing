@@ -443,6 +443,50 @@
             padding: 0.375rem 0.75rem;
         }
 
+
+        .mobile-header-actions {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .mobile-user-toggle::after {
+            display: none;
+        }
+
+        .mobile-user-meta {
+            display: none !important;
+        }
+
+        .mobile-user-icon {
+            color: #495057;
+        }
+
+        @media (max-width: 991.98px) {
+            .mobile-header-row {
+                min-height: 50px;
+            }
+
+            .mobile-navbar-brand {
+                border-right: 0;
+                margin-right: 0;
+                padding: 0;
+                max-width: calc(100% - 140px);
+                pointer-events: auto;
+            }
+
+            .mobile-navbar-brand span {
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 0.95rem;
+            }
+
+            .mobile-header-actions .nav-link {
+                padding: 0 !important;
+            }
+        }
+
         .mobile-username {
             max-width: 120px;
             white-space: nowrap;
