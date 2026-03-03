@@ -2,7 +2,7 @@
 <div class="card border shadow-sm" style="height: calc(100vh - 200px); min-height: 600px;">
     <div class="card-body p-0 d-flex" style="height: 100%;">
         {{-- Left Sidebar - Feedback List --}}
-        <div class="feedback-sidebar border-end" id="feedbackSidebar">
+        <div class="feedback-sidebar border-end {{ $chatRoomId ? 'mobile-hidden' : '' }}" id="feedbackSidebar">
             {{-- Search & Filter Header --}}
             <div class="sidebar-header border-bottom p-3">
                 <div class="input-group input-group-sm mb-2">
@@ -105,7 +105,7 @@
         <div class="resizer" id="resizer"></div>
 
         {{-- Right Side - Chat Content --}}
-        <div class="chat-container flex-grow-1" id="chatContainer">
+        <div class="chat-container flex-grow-1 {{ $chatRoomId ? 'show' : '' }}" id="chatContainer">
             @if (!$chatRoomId)
                 {{-- Empty State --}}
                 <div class="empty-state">
@@ -121,9 +121,17 @@
                     {{-- Chat Header --}}
                     <div class="chat-header border-bottom p-3 bg-light">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
-                                <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button"
+                                    class="btn btn-link text-dark p-0 mobile-back-btn"
+                                    wire:click="backToChatList"
+                                    aria-label="{{ __('Back to chat list') }}">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <div>
+                                    <h6 class="mb-0">{{ $chatRoom->creference ?? 'Complaint by ' . ($chatRoom->applicant->name ?? 'Unknown') }} - {{ ucfirst($chatRoom->ctype) }}</h6>
+                                    <small class="text-muted">{{ $chatRoom->applicant->name ?? 'Unknown' }} - {{ ucfirst($chatRoom->applicant->customer->cnmcust ?? 'Customer') }}</small>
+                                </div>
                             </div>
                             <div>
                                 <span class="badge text-capitalize
@@ -765,6 +773,10 @@
             box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15);
         }
 
+        .mobile-back-btn {
+            display: none;
+        }
+
         /* Scrollbar Styling */
         .feedback-list::-webkit-scrollbar,
         .chat-messages::-webkit-scrollbar {
@@ -813,9 +825,23 @@
 
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
+            .card {
+                border-radius: 0;
+                height: 100vh !important;
+                min-height: 100vh !important;
+            }
+
+            .card-body {
+                height: 100vh !important;
+            }
+
             .feedback-sidebar {
                 width: 100%;
                 max-width: 100%;
+            }
+
+            .feedback-sidebar.mobile-hidden {
+                display: none;
             }
 
             .resizer {
@@ -831,14 +857,49 @@
                 z-index: 1040;
                 transform: translateX(100%);
                 transition: transform 0.3s ease;
+                background: #fff;
             }
 
             .chat-container.show {
                 transform: translateX(0);
             }
 
+            .chat-content {
+                height: 100vh;
+            }
+
+            .chat-header {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+            }
+
+            .chat-input {
+                position: sticky;
+                bottom: 0;
+                z-index: 2;
+            }
+
+            .chat-input .input-group {
+                margin-bottom: 0 !important;
+            }
+
+            .mobile-back-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
             .message-content {
-                max-width: 80%;
+                max-width: 85%;
+            }
+
+            .message {
+                padding: 0 0.75rem;
+            }
+
+            .message-bubble {
+                border-radius: 12px;
             }
         }
     </style>
