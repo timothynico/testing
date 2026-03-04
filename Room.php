@@ -28,6 +28,9 @@ class Room extends Component
     public $idClose = null;
     public $attachment;
     public $firstUnreadMessageId = null;
+    public $isSendingMessage = false;
+    public $sendingAttachmentPreview = null;
+    public $attachmentInputKey = 0;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -67,27 +70,42 @@ class Room extends Component
             return;
         }
 
-        $path = null;
+        $messageText = $this->newMessage;
+        $uploadedAttachment = $this->attachment;
 
-        if ($this->attachment) {
-            $path = ImageUploadService::compressAndStore(
-                $this->attachment,
-                'chat-attachments'
-            );
-        }
-
-        $message = Message::create([
-            'nidchatroom' => $this->chatRoomId,
-            'niduser' => Auth::id(),
-            'ctext' => $this->newMessage,
-            'cattachment_path' => $path,
-        ]);
-
-        broadcast(new ChatMessageSent($message))->toOthers();
-
-        $this->refreshChatState();
+        $this->isSendingMessage = true;
+        $this->sendingAttachmentPreview = $uploadedAttachment
+            ? $uploadedAttachment->temporaryUrl()
+            : null;
 
         $this->reset(['newMessage', 'attachment']);
+        $this->attachmentInputKey++;
+        $this->dispatch('reset-file-input');
+
+        try {
+            $path = null;
+
+            if ($uploadedAttachment) {
+                $path = ImageUploadService::compressAndStore(
+                    $uploadedAttachment,
+                    'chat-attachments'
+                );
+            }
+
+            $message = Message::create([
+                'nidchatroom' => $this->chatRoomId,
+                'niduser' => Auth::id(),
+                'ctext' => $messageText,
+                'cattachment_path' => $path,
+            ]);
+
+            broadcast(new ChatMessageSent($message))->toOthers();
+
+            $this->refreshChatState();
+        } finally {
+            $this->isSendingMessage = false;
+            $this->sendingAttachmentPreview = null;
+        }
     }
 
     public function messageReceived($event)
@@ -323,6 +341,7 @@ class Room extends Component
     public function removeAttachment()
     {
         $this->reset('attachment');
+        $this->attachmentInputKey++;
         $this->dispatch('reset-file-input');
     }
 
