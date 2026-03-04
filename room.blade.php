@@ -11,11 +11,11 @@
                     </span>
                     <input type="text" class="form-control border-start-0"
                         placeholder="{{ __('Search feedback...') }}" id="searchFeedback"
-                        wire:model.live="search">
+                        wire:model.live.debounce.500ms="search">
                 </div>
 
                 <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm" id="filterMenu" wire:model.live="filterMenu">
+                    <select class="form-select form-select-sm" id="filterMenu" wire:model.live.debounce.500ms="filterMenu">
                         <option value="">{{ __('All Menus') }}</option>
                         <option value="delivery">{{ __('Delivery') }}</option>
                         <option value="invoice">{{ __('Invoice') }}</option>
@@ -27,7 +27,7 @@
                         <option value="other">{{ __('Other') }}</option>
                     </select>
 
-                    <select class="form-select form-select-sm" id="filterStatus" wire:model.live="filterStatus">
+                    <select class="form-select form-select-sm" id="filterStatus" wire:model.live.debounce.500ms="filterStatus">
                         <option value="">{{ __('All Status') }}</option>
                         <option value="in_progress">{{ __('In Progress') }}</option>
                         <option value="resolved">{{ __('Resolved') }}</option>
@@ -39,6 +39,12 @@
             {{-- Feedback List --}}
             <div class="feedback-list" id="feedbackList">
                 @forelse ($chatRoomList as $item)
+
+                    @php
+                        if ($item['cstatus'] === 'in_progress' && !empty($item['auto_close_at']) && \Carbon\Carbon::parse($item['auto_close_at'])->lte(now())) {
+                            $item['cstatus'] = 'closed';
+                        }
+                    @endphp
                     <div class="feedback-item {{ $chatRoomId == $item['nidchatroom'] ? 'active' : '' }}"
                         wire:click="selectChatRoom({{ $item['nidchatroom'] }})"
                         data-chatroom-id="{{ $item['nidchatroom'] }}"
@@ -150,7 +156,6 @@
                             </span>
                         </div>
                     </div>
-
                     @php
                         $autoCloseAt = $chatRoom->auto_close_at
                             ? \Carbon\Carbon::parse($chatRoom->auto_close_at)
@@ -824,54 +829,9 @@
         /* Mobile Responsive */
         @media (max-width: 991.98px) {
 
-            .card {
-                min-height: 100vh !important;
-                height: 100vh !important;
-            }
-
             .feedback-sidebar {
                 width: 100%;
                 max-width: 100%;
-            }
-
-            .sidebar-header {
-                padding: 0.9rem !important;
-            }
-
-            .sidebar-header .form-control,
-            .sidebar-header .form-select,
-            .sidebar-header .input-group-text {
-                font-size: 0.95rem;
-                padding-top: 0.55rem;
-                padding-bottom: 0.55rem;
-            }
-
-            .feedback-item {
-                padding: 12px 14px;
-                min-height: 90px;
-            }
-
-            .feedback-title {
-                font-size: 1rem;
-                line-height: 1.35;
-            }
-
-            .feedback-user,
-            .feedback-description,
-            .feedback-time {
-                font-size: 0.875rem;
-                line-height: 1.35;
-            }
-
-            .feedback-menu {
-                font-size: 0.78rem;
-                padding: 3px 7px;
-            }
-
-            .unread-badge {
-                font-size: 0.75rem;
-                min-width: 20px;
-                padding: 2px 7px;
             }
 
             .resizer {
@@ -898,34 +858,6 @@
                 padding-bottom: 80px;
             }
 
-            .system-message {
-                font-size: 0.95rem;
-                margin: 18px 0;
-            }
-
-            .system-card {
-                max-width: 94%;
-                padding: 12px;
-            }
-
-            .system-card .fs-6,
-            .system-card .fs-8,
-            .members-label,
-            .member-name,
-            .member-role {
-                font-size: 0.9rem !important;
-                line-height: 1.35;
-            }
-
-            .date-separator {
-                font-size: 0.85rem;
-            }
-
-            .message {
-                padding: 0 0.75rem;
-                margin-bottom: 14px;
-            }
-
             .chat-input {
                 position: fixed;
                 bottom: 0;
@@ -935,31 +867,165 @@
                 background: #fff;
             }
 
+            /* font size di HP */
+
             .message-content {
-                max-width: 92%;
+                max-width: 85%;
             }
 
-            .message-sender,
+            .feedback-title {
+                font-size: 1.2rem;
+            }
+
+            .feedback-menu {
+                font-size: 0.95rem;
+            }
+
+            .feedback-user {
+                font-size: 1.05rem;
+            }
+
+            .feedback-description {
+                font-size: 1.05rem;
+            }
+
+            .user-role {
+                font-size: 0.95rem;
+            }
+
+            .feedback-time {
+                font-size: 0.95rem;
+            }
+
+            .unread-badge {
+                font-size: 0.875rem;
+            }
+
+            .message-sender {
+                font-size: 1.05rem;
+            }
+
             .message-time {
-                font-size: 0.85rem;
-            }
-
-            .message-bubble {
-                padding: 10px 13px;
-                border-radius: 10px;
+                font-size: 0.95rem;
             }
 
             .message-bubble p {
-                font-size: 1rem;
-                line-height: 1.5;
+                font-size: 1.15rem;
             }
 
-            .chat-input .form-control,
-            .chat-input .btn,
-            .chat-input .btn-sm,
-            .chat-input .form-text,
-            .chat-input small {
+            .system-card {
+                font-size: 1.05rem;
+            }
+
+            .member-name {
                 font-size: 0.95rem;
+            }
+
+            .member-role {
+                font-size: 0.95rem;
+            }
+
+            .date-separator {
+                font-size: 1.05rem;
+            }
+
+            .chat-input .form-control {
+                font-size: 1.15rem;
+            }
+
+            .btn {
+                font-size: 1.05rem;
+            }
+
+            /* Padding adjustments */
+            .feedback-item {
+                padding: 14px 20px;
+            }
+
+            .message {
+                padding: 0 1.25rem;
+                margin-bottom: 20px;
+            }
+
+            .message-bubble {
+                padding: 12px 16px;
+            }
+
+            .message-header {
+                margin-bottom: 8px;
+            }
+
+            .chat-header {
+                padding: 16px 20px !important;
+            }
+
+            .chat-input {
+                padding: 16px 20px !important;
+            }
+
+            .system-card {
+                padding: 16px 20px;
+                max-width: calc(100% - 40px);
+            }
+
+            .system-message {
+                padding: 0 20px;
+                margin: 18px 0;
+            }
+
+            .member-item {
+                padding: 10px 0;
+            }
+
+            .sidebar-header {
+                padding: 14px 20px !important;
+            }
+
+            .date-separator {
+                margin: 16px 20px;
+            }
+
+            .chat-messages {
+                padding-bottom: 100px;
+            }
+
+            /* Search & Filter bar */
+            .sidebar-header .input-group-sm .form-control,
+            .sidebar-header .input-group-sm .input-group-text {
+                font-size: 1rem;
+                height: 42px;
+            }
+
+            .sidebar-header .form-select {
+                font-size: 1rem;
+                height: 42px;
+            }
+
+            .sidebar-header .input-group-sm {
+                margin-bottom: 10px !important;
+            }
+
+            /* Feedback list full height */
+            .feedback-sidebar {
+                height: 100%;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .feedback-list {
+                flex: 1;
+                overflow-y: auto;
+            }
+
+            /* Card full height */
+            .card {
+                height: calc(100vh - 120px) !important;
+                min-height: unset !important;
+            }
+
+            .card-body {
+                height: 100% !important;
             }
         }
     </style>
