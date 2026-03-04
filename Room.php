@@ -67,11 +67,17 @@ class Room extends Component
             return;
         }
 
+        $messageText = $this->newMessage;
+        $uploadedAttachment = $this->attachment;
+
+        $this->reset(['newMessage', 'attachment']);
+        $this->dispatch('reset-file-input');
+
         $path = null;
 
-        if ($this->attachment) {
+        if ($uploadedAttachment) {
             $path = ImageUploadService::compressAndStore(
-                $this->attachment,
+                $uploadedAttachment,
                 'chat-attachments'
             );
         }
@@ -79,7 +85,7 @@ class Room extends Component
         $message = Message::create([
             'nidchatroom' => $this->chatRoomId,
             'niduser' => Auth::id(),
-            'ctext' => $this->newMessage,
+            'ctext' => $messageText,
             'cattachment_path' => $path,
         ]);
 
@@ -87,7 +93,6 @@ class Room extends Component
 
         $this->refreshChatState();
 
-        $this->reset(['newMessage', 'attachment']);
     }
 
     public function messageReceived($event)
