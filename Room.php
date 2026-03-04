@@ -27,6 +27,7 @@ class Room extends Component
     public $statusReason = '';
     public $idClose = null;
     public $attachment;
+    public bool $shouldDisplayAttachmentPreview = true;
     public $firstUnreadMessageId = null;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
@@ -105,6 +106,7 @@ class Room extends Component
 
             $this->refreshChatState();
             $this->reset(['attachment']);
+            $this->shouldDisplayAttachmentPreview = true;
 
             // Signal JS queue: this item is done → remove optimistic bubble → process next
             $this->dispatch('message-confirmed',
@@ -359,7 +361,20 @@ class Room extends Component
     public function removeAttachment()
     {
         $this->reset('attachment');
+        $this->shouldDisplayAttachmentPreview = true;
         $this->dispatch('reset-file-input');
+    }
+
+    public function clearAttachmentAfterEnqueue()
+    {
+        $this->reset('attachment');
+        $this->shouldDisplayAttachmentPreview = false;
+        $this->dispatch('reset-file-input');
+    }
+
+    public function showAttachmentPreview()
+    {
+        $this->shouldDisplayAttachmentPreview = true;
     }
 
         public function backToChatRoomList()

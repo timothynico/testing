@@ -362,7 +362,7 @@
 
                                 {{-- Image Preview --}}
                                 <div class="mb-2" wire:loading.remove wire:target="attachment">
-                                    @if ($attachment)
+                                    @if ($attachment && $shouldDisplayAttachmentPreview)
                                         <div class="d-inline-flex align-items-start gap-2">
                                             <img src="{{ $attachment->temporaryUrl() }}"
                                                 class="img-thumbnail"
@@ -1403,7 +1403,7 @@
             }
 
             // ── 2. Clear file input AND Livewire $attachment state ──
-            //    We call removeAttachment() here because we've already captured
+            //    We call clearAttachmentAfterEnqueue() here because we've already captured
             //    the File object above. This ensures:
             //    (a) The PHP-rendered preview div disappears on next Livewire morph
             //    (b) $attachment is null, so the next queue item starts clean
@@ -1414,7 +1414,7 @@
             
             if (file) {
                 if (fileInput) fileInput.value = '';
-                component.$wire.call('removeAttachment');
+                component.$wire.call('clearAttachmentAfterEnqueue');
             }
 
             // ── 3. Enqueue ──
@@ -1439,6 +1439,15 @@
                 fileInput.value = '';
             }
         });
+
+        const attachmentInput = document.getElementById('chatAttachmentInput');
+        if (attachmentInput) {
+            attachmentInput.addEventListener('change', () => {
+                const component = getComponent();
+                if (!component) return;
+                component.$wire.call('showAttachmentPreview');
+            });
+        }
 
         setTimeout(() => {
             if (window.Echo?.socketId()) {
