@@ -28,9 +28,6 @@ class Room extends Component
     public $idClose = null;
     public $attachment;
     public $firstUnreadMessageId = null;
-    public $isSendingMessage = false;
-    public $sendingAttachmentPreview = null;
-    public $attachmentInputKey = 0;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -54,54 +51,79 @@ class Room extends Component
         $this->dispatch('chatRoomSelected', chatRoomId: $id);
     }
 
-    public function sendMessage()
+    /**
+     * Called by the JS send-queue, one item at a time.
+     *
+     * $tempId   – client-side UUID to match the optimistic bubble
+     * $text     – message text passed directly from JS (avoids Livewire state race condition)
+     *
+     * Attachment-only messages still use the Livewire file upload state; the JS queue
+     * sends text as an empty string in that case.
+     */
+    public function sendMessage(string $tempId = '', string $text = '')
     {
         if (!$this->chatRoomId) {
+            $this->queueFail($tempId);
             return;
         }
-
-        $this->validate([
-            'newMessage' => 'nullable|string|max:5000',
-            'attachment' => 'nullable|image|max:10240' // max 10MB
-        ]);
-
-        // Return if both emptys
-        if (!$this->newMessage && !$this->attachment) {
-            return;
-        }
-
-        $messageText = $this->newMessage;
-        $uploadedAttachment = $this->attachment;
-
-        $this->reset(['newMessage', 'attachment']);
-        $this->dispatch('reset-file-input');
-
-        $path = null;
-
-        if ($uploadedAttachment) {
-            $path = ImageUploadService::compressAndStore(
-                $uploadedAttachment,
-                'chat-attachments'
-            );
-        }
-
-        $message = Message::create([
-            'nidchatroom' => $this->chatRoomId,
-            'niduser' => Auth::id(),
-            'ctext' => $messageText,
-            'cattachment_path' => $path,
-        ]);
 
         try {
-            $path = null;
+            // Validate attachment if present
+            if ($this->attachment) {
+                $this->validate(['attachment' => 'image|max:10240']);
+            }
 
-            if ($uploadedAttachment) {
+            $text = trim($text);
+
+            if (strlen($text) > 5000) {
+                $this->queueFail($tempId);
+                return;
+            }
+
+            // Nothing to send
+            if ($text === '' && !$this->attachment) {
+                $this->queueFail($tempId);
+                return;
+            }
+
+            $path = null;
+            if ($this->attachment) {
                 $path = ImageUploadService::compressAndStore(
-                    $uploadedAttachment,
+                    $this->attachment,
                     'chat-attachments'
                 );
             }
 
+            $message = Message::create([
+                'nidchatroom'      => $this->chatRoomId,
+                'niduser'          => Auth::id(),
+                'ctext'            => $text ?: '',
+                'cattachment_path' => $path,
+            ]);
+
+            broadcast(new ChatMessageSent($message))->toOthers();
+
+            $this->refreshChatState();
+            $this->reset(['attachment']);
+
+            // Signal JS queue: this item is done → remove optimistic bubble → process next
+            $this->dispatch('message-confirmed',
+                tempId: $tempId,
+                messageId: $message->nidmessage,
+                attachmentPath: $message->cattachment_path ?? null,
+            );
+
+        } catch (\Throwable $e) {
+            $this->queueFail($tempId);
+            throw $e;
+        }
+    }
+
+    private function queueFail(string $tempId): void
+    {
+        if ($tempId !== '') {
+            $this->dispatch('message-failed', tempId: $tempId);
+        }
     }
 
     public function messageReceived($event)
@@ -337,7 +359,6 @@ class Room extends Component
     public function removeAttachment()
     {
         $this->reset('attachment');
-        $this->attachmentInputKey++;
         $this->dispatch('reset-file-input');
     }
 
