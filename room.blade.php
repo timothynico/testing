@@ -303,6 +303,28 @@
                                 @endforeach
                             @endforeach
                         @endif
+
+                        @if($isSendingMessage)
+                            <div class="message outgoing message-sending">
+                                <div class="message-content">
+                                    <div class="message-header">
+                                        <span class="message-sender">{{ __('You') }}</span>
+                                        <span class="message-time">{{ __('Sending...') }}</span>
+                                    </div>
+                                    <div class="message-bubble opacity-75">
+                                        @if ($sendingAttachmentPreview)
+                                            <img src="{{ $sendingAttachmentPreview }}"
+                                                class="img-fluid rounded"
+                                                style="max-width: 250px;">
+                                        @endif
+                                        <div class="d-flex align-items-center gap-2 mt-1">
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <small class="text-muted">{{ __('Uploading image...') }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                         {{-- System Footer --}}
                         @if(in_array($chatRoom->cstatus, ['resolved', 'closed']) || $isAutoClosedPending)
                             <div class="system-message mt-3">
@@ -355,7 +377,7 @@
                             </div>
 
                             <div class="mb-2" wire:loading.remove wire:target="attachment">
-                                @if ($attachment)
+                                @if ($attachment && !$isSendingMessage)
                                     <div class="d-inline-flex align-items-start gap-2">
                                         <img src="{{ $attachment->temporaryUrl() }}"
                                             class="img-thumbnail"
@@ -376,6 +398,7 @@
                                     <i class="bi bi-image"></i>
                                     <input type="file"
                                         id="chatAttachmentInput"
+                                        wire:key="chat-attachment-input-{{ $attachmentInputKey }}"
                                         wire:model="attachment"
                                         accept="image/*"
                                         hidden

@@ -28,6 +28,9 @@ class Room extends Component
     public $idClose = null;
     public $attachment;
     public $firstUnreadMessageId = null;
+    public $isSendingMessage = false;
+    public $sendingAttachmentPreview = null;
+    public $attachmentInputKey = 0;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
     {
@@ -89,9 +92,15 @@ class Room extends Component
             'cattachment_path' => $path,
         ]);
 
-        broadcast(new ChatMessageSent($message))->toOthers();
+        try {
+            $path = null;
 
-        $this->refreshChatState();
+            if ($uploadedAttachment) {
+                $path = ImageUploadService::compressAndStore(
+                    $uploadedAttachment,
+                    'chat-attachments'
+                );
+            }
 
     }
 
@@ -328,6 +337,7 @@ class Room extends Component
     public function removeAttachment()
     {
         $this->reset('attachment');
+        $this->attachmentInputKey++;
         $this->dispatch('reset-file-input');
     }
 
