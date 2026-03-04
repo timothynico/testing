@@ -165,9 +165,10 @@
                         $isTicketLocked = in_array($chatRoom->cstatus, ['resolved', 'closed'], true) || $isAutoClosedPending;
                     @endphp
 
-                    {{-- Chat Messages --}}
-                    <div class="chat-messages" id="chatMessages"
-                        data-first-unread-message-id="{{ $firstUnreadMessageId }}">
+                    {{-- Chat Messages (server-rendered, morphed by Livewire) --}}
+                    <div class="chat-messages-wrapper">
+                        <div class="chat-messages" id="chatMessages"
+                            data-first-unread-message-id="{{ $firstUnreadMessageId }}">
                         @php
                             $sortedMembers = $chatRoom->members->sortBy(function ($member) use ($chatRoom) {
                                 // Aplicant
@@ -303,28 +304,6 @@
                                 @endforeach
                             @endforeach
                         @endif
-
-                        @if($isSendingMessage)
-                            <div class="message outgoing message-sending">
-                                <div class="message-content">
-                                    <div class="message-header">
-                                        <span class="message-sender">{{ __('You') }}</span>
-                                        <span class="message-time">{{ __('Sending...') }}</span>
-                                    </div>
-                                    <div class="message-bubble opacity-75">
-                                        @if ($sendingAttachmentPreview)
-                                            <img src="{{ $sendingAttachmentPreview }}"
-                                                class="img-fluid rounded"
-                                                style="max-width: 250px;">
-                                        @endif
-                                        <div class="d-flex align-items-center gap-2 mt-1">
-                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                            <small class="text-muted">{{ __('Uploading image...') }}</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
                         {{-- System Footer --}}
                         @if(in_array($chatRoom->cstatus, ['resolved', 'closed']) || $isAutoClosedPending)
                             <div class="system-message mt-3">
@@ -364,32 +343,39 @@
                             </div>
                         @endif
                     </div>
+                    {{-- Optimistic bubbles live here — outside Livewire morph scope --}}
+                    <div id="optimisticMessages" wire:ignore></div>
+                    </div>{{-- /.chat-messages-wrapper --}}
 
                     {{-- Chat Input --}}
                     <div class="chat-input border-top p-3">
-                        <form wire:submit.prevent="sendMessage" enctype="multipart/form-data">
-                            {{-- Preview Image --}}
-                            <div class="mb-2" wire:loading wire:target="attachment">
-                                <div class="d-inline-flex align-items-center gap-2 text-muted small">
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    <span>{{ __('Loading photo preview...') }}</span>
-                                </div>
-                            </div>
-
-                            <div class="mb-2" wire:loading.remove wire:target="attachment">
-                                @if ($attachment && !$isSendingMessage)
-                                    <div class="d-inline-flex align-items-start gap-2">
-                                        <img src="{{ $attachment->temporaryUrl() }}"
-                                            class="img-thumbnail"
-                                            style="max-height:150px;">
-                                        <button type="button"
-                                            class="btn btn-sm btn-outline-danger"
-                                            wire:click="removeAttachment"
-                                            title="{{ __('Cancel image') }}">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
+                        <form id="chatForm" onsubmit="handleOptimisticSend(event)" enctype="multipart/form-data">
+                            {{-- Preview Wrapper --}}
+                            <div id="attachmentPreviewWrapper">
+                                {{-- Loading Preview --}}
+                                <div class="mb-2" wire:loading wire:target="attachment">
+                                    <div class="d-inline-flex align-items-center gap-2 text-muted small">
+                                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                                        <span>{{ __('Loading photo preview...') }}</span>
                                     </div>
-                                @endif
+                                </div>
+
+                                {{-- Image Preview --}}
+                                <div class="mb-2" wire:loading.remove wire:target="attachment">
+                                    @if ($attachment)
+                                        <div class="d-inline-flex align-items-start gap-2">
+                                            <img src="{{ $attachment->temporaryUrl() }}"
+                                                class="img-thumbnail"
+                                                style="max-height:150px;">
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                wire:click="removeAttachment"
+                                                title="{{ __('Cancel image') }}">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                             <div class="input-group mb-2">
 
@@ -398,7 +384,6 @@
                                     <i class="bi bi-image"></i>
                                     <input type="file"
                                         id="chatAttachmentInput"
-                                        wire:key="chat-attachment-input-{{ $attachmentInputKey }}"
                                         wire:model="attachment"
                                         accept="image/*"
                                         hidden
@@ -408,6 +393,7 @@
                                 {{-- Text Input --}}
                                 <input type="text" 
                                     class="form-control"
+                                    id="chatMessageInput"
                                     placeholder="{{ __('Type a message...') }}"
                                     wire:model="newMessage"
                                     autocomplete="off"
@@ -630,13 +616,30 @@
             height: 100%;
         }
 
-        /* Chat Messages */
-        .chat-messages {
+        /* Chat Messages wrapper — the actual scroll container */
+        .chat-messages-wrapper {
             flex: 1;
             overflow-y: auto;
             background-color: #ffffff;
             display: flex;
             flex-direction: column;
+            position: relative;
+        }
+
+        /* Chat Messages (server-rendered by Livewire) — no own scroll */
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            /* No overflow — wrapper scrolls */
+        }
+
+        /* Optimistic overlay — stacks below server messages inside wrapper */
+        #optimisticMessages {
+            /* No padding — messages have their own padding */
+        }
+
+        #optimisticMessages .message:first-child {
+            margin-top: 0;
         }
 
         /* Messages */
@@ -825,6 +828,62 @@
             background: #a8a8a8;
         }
 
+        /* ── Send Queue — Optimistic UI status icons ─────────────── */
+
+        /* Status icon slot sitting right of the time string */
+        .msg-status {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 5px;
+            font-size: 0.68rem;
+            vertical-align: middle;
+            line-height: 1;
+            transition: opacity 0.2s;
+        }
+
+        /* queued → clock, grey */
+        .msg-status.queued {
+            color: #adb5bd;
+        }
+
+        /* sending → Bootstrap spinner, matches text size */
+        .msg-status.sending {
+            color: #6c757d;
+        }
+        .msg-status.sending .spinner-border {
+            width: 0.65rem;
+            height: 0.65rem;
+            border-width: 0.1em;
+        }
+
+        /* failed → red exclamation, pointer cursor */
+        .msg-status.failed {
+            color: #dc3545;
+            cursor: pointer;
+        }
+        .msg-status.failed:hover {
+            opacity: 0.75;
+        }
+
+        /* Placeholder text shown while image is queued/sending */
+        .opt-sending-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Optimistic bubble: slightly muted until confirmed */
+        .message.status-queued .message-bubble,
+        .message.status-sending .message-bubble {
+            opacity: 0.72;
+        }
+
+        /* Failed bubble: subtle red border */
+        .message.status-failed .message-bubble {
+            border: 1px solid rgba(220, 53, 69, 0.45);
+            opacity: 1;
+        }
+
         /* Date Separator (minimalist) */
         .date-separator {
             display: flex;
@@ -877,7 +936,7 @@
                 transform: translateX(0);
             }
 
-            .chat-messages {
+            .chat-messages-wrapper {
                 padding-bottom: 80px;
             }
 
@@ -1063,6 +1122,312 @@
     }
 
     function initChatRoom() {
+
+        // ═══════════════════════════════════════════════════════════
+        //  SEND QUEUE — Optimistic UI (WhatsApp-style)
+        //
+        //  States per message:
+        //    queued  → clock icon (grey)   — waiting in queue
+        //    sending → spinner             — being sent to server
+        //    sent    → image shown / no icon — confirmed by server
+        //    failed  → ! icon (red)        — server returned error
+        //
+        //  Attachment flow:
+        //    1. User picks file → FileReader reads it as base64 for preview
+        //    2. Original File object stored in queue item (NOT base64)
+        //    3. When item is processed: $wire.upload() → success cb → sendMessage()
+        //    4. On confirm: swap placeholder → real image, then remove bubble
+        // ═══════════════════════════════════════════════════════════
+
+        const queue = {
+            items: [],      // [{ tempId, text, file|null, previewDataUrl|null }]
+            processing: false,
+        };
+
+        let tempCounter = 0;
+
+        // ── Helpers ──────────────────────────────────────────────────
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.appendChild(document.createTextNode(str));
+            return d.innerHTML;
+        }
+
+        function getComponent() {
+            return Livewire.all()[0] ?? null;
+        }
+
+        function nowHHMM() {
+            const d = new Date();
+            return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        }
+
+        // ── Status icon HTML ─────────────────────────────────────────
+
+        function statusIconHtml(status) {
+            switch (status) {
+                case 'queued':
+                    return `<span class="msg-status queued" title="{{ __('Queued') }}">
+                                <i class="bi bi-clock"></i>
+                            </span>`;
+                case 'sending':
+                    return `<span class="msg-status sending" title="{{ __('Sending…') }}">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>`;
+                case 'failed':
+                    return `<span class="msg-status failed" title="{{ __('Failed — click to retry') }}" role="button">
+                                <i class="bi bi-exclamation-circle-fill"></i>
+                            </span>`;
+                default:
+                    return ''; // sent — no icon
+            }
+        }
+
+        // ── Set status on an existing optimistic bubble ───────────────
+
+        function setMsgStatus(tempId, status) {
+            const el = document.querySelector(`#optimisticMessages .message[data-temp-id="${tempId}"]`);
+            if (!el) return;
+
+            el.classList.remove('status-queued', 'status-sending', 'status-failed');
+            if (status !== 'sent') el.classList.add(`status-${status}`);
+
+            const timeEl = el.querySelector('.message-time');
+            if (!timeEl) return;
+
+            timeEl.querySelector('.msg-status')?.remove();
+
+            const icon = statusIconHtml(status);
+            if (icon) {
+                timeEl.insertAdjacentHTML('beforeend', icon);
+                if (status === 'failed') {
+                    timeEl.querySelector('.msg-status.failed')
+                        ?.addEventListener('click', () => retryMessage(tempId));
+                }
+            }
+        }
+
+        // ── Retry failed message ──────────────────────────────────────
+        // Image messages cannot be retried (File object is gone after first attempt).
+        // Clicking the error icon removes the bubble so user can re-send manually.
+
+        function retryMessage(tempId) {
+            const el = document.querySelector(`#optimisticMessages .message[data-temp-id="${tempId}"]`);
+            if (!el) return;
+
+            if (el.dataset.hasImage === '1') {
+                // Can't replay a File object — just remove, user re-sends manually
+                el.remove();
+                return;
+            }
+
+            const text = el.dataset.queueText ?? '';
+            setMsgStatus(tempId, 'queued');
+            queue.items.unshift({ tempId, text, file: null, previewDataUrl: null });
+            processQueue();
+        }
+
+        // ── Build optimistic bubble content ───────────────────────────
+        // While image is queued/sending we show a text placeholder.
+        // The real image is swapped in by swapBubbleToConfirmed() on success.
+
+        function buildBubbleContent(text, hasImage) {
+            if (hasImage) {
+                const label = `<span class="opt-sending-label">{{ __('(Sending image...)') }}</span>`;
+                return text
+                    ? `<div class="opt-image-wrapper">${label}<p class="mb-0 mt-1">${escapeHtml(text)}</p></div>`
+                    : `<div class="opt-image-wrapper">${label}</div>`;
+            }
+            return text ? `<p class="mb-0">${escapeHtml(text)}</p>` : '';
+        }
+
+        // ── Insert optimistic bubble into #optimisticMessages ─────────
+
+        function insertOptimisticBubble(tempId, text, file) {
+            const container = document.getElementById('optimisticMessages');
+            if (!container) return;
+
+            const userName = '{{ addslashes(Auth::user()->name ?? "You") }}';
+
+            const msgEl = document.createElement('div');
+            msgEl.className = 'message outgoing status-queued';
+            msgEl.dataset.tempId = tempId;
+            msgEl.dataset.queueText = text;
+            if (file) msgEl.dataset.hasImage = '1';
+
+            msgEl.innerHTML = `
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-sender">${escapeHtml(userName)}</span>
+                        <span class="message-time">
+                            ${nowHHMM()}
+                            ${statusIconHtml('queued')}
+                        </span>
+                    </div>
+                    <div class="message-bubble">
+                        ${buildBubbleContent(text, !!file)}
+                    </div>
+                </div>
+            `;
+            container.appendChild(msgEl);
+            scrollToBottom(true);
+        }
+
+        // ── Swap placeholder → real image on confirm ──────────────────
+
+        function swapBubbleToConfirmed(tempId, storagePath, text) {
+            const el = document.querySelector(`#optimisticMessages .message[data-temp-id="${tempId}"]`);
+            if (!el || !storagePath) return;
+
+            const wrapper = el.querySelector('.opt-image-wrapper');
+            if (!wrapper) return;
+
+            let html = `<img
+                src="/storage/${escapeHtml(storagePath)}"
+                class="img-fluid rounded"
+                style="max-width:250px; cursor:pointer; display:block;"
+                onclick="window.open(this.src)">`;
+            if (text) html += `<p class="mt-1 mb-0">${escapeHtml(text)}</p>`;
+            wrapper.outerHTML = html;
+        }
+
+        // ── Queue processor (FIFO, one at a time) ─────────────────────
+        //
+        // For items WITH image:
+        //   $wire.upload('attachment', file, onSuccess, onError)
+        //   → success: call sendMessage()   ← $attachment ready in Livewire
+        //   → error:   onQueueItemFailed()
+        //
+        // For items WITHOUT image:
+        //   call sendMessage() directly
+
+        function processQueue() {
+            if (queue.processing || queue.items.length === 0) return;
+
+            queue.processing = true;
+            const item = queue.items[0];
+
+            setMsgStatus(item.tempId, 'sending');
+
+            const component = getComponent();
+            if (!component) {
+                onQueueItemFailed(item.tempId);
+                return;
+            }
+
+            if (item.file) {
+                component.$wire.upload(
+                    'attachment',
+                    item.file,
+                    () => {
+                        // Upload finished — $attachment is now set in Livewire
+                        component.$wire.call('sendMessage', item.tempId, item.text);
+                    },
+                    () => {
+                        // Upload error
+                        onQueueItemFailed(item.tempId);
+                    }
+                );
+            } else {
+                component.$wire.call('sendMessage', item.tempId, item.text);
+            }
+        }
+
+        function onQueueItemConfirmed(tempId, storagePath) {
+            const item = queue.items.find(i => i.tempId === tempId);
+            queue.items = queue.items.filter(i => i.tempId !== tempId);
+            queue.processing = false;
+
+            const el = document.querySelector(`#optimisticMessages .message[data-temp-id="${tempId}"]`);
+
+            if (storagePath && el) {
+                // Briefly swap the placeholder so the image is visible for the
+                // tiny window while Livewire fetches & morphs the server message.
+                swapBubbleToConfirmed(tempId, storagePath, item?.text ?? '');
+            }
+
+            // KEY FIX: Remove the optimistic bubble IMMEDIATELY, BEFORE
+            // Livewire morphs the server-rendered message into the DOM.
+            // By removing first, the bubble and the real message NEVER
+            // coexist in the DOM at the same time — zero duplicate, zero flicker.
+            if (el) {
+                el.remove();
+            }
+
+            processQueue();
+        }
+
+        function onQueueItemFailed(tempId) {
+            queue.items = queue.items.filter(i => i.tempId !== tempId);
+            queue.processing = false;
+            setMsgStatus(tempId, 'failed');
+            processQueue();
+        }
+
+        // ── Livewire event listeners ──────────────────────────────────
+
+        Livewire.on('message-confirmed', ({ tempId, attachmentPath }) => {
+            onQueueItemConfirmed(tempId, attachmentPath ?? null);
+        });
+
+        Livewire.on('message-failed', ({ tempId }) => {
+            onQueueItemFailed(tempId);
+        });
+
+        // ── Form submit handler ───────────────────────────────────────
+
+        window.handleOptimisticSend = function(event) {
+            event.preventDefault();
+
+            const component = getComponent();
+            if (!component) return;
+
+            const chatRoomId = component.$wire?.chatRoomId
+                ?? component.snapshot?.data?.chatRoomId
+                ?? null;
+            if (!chatRoomId) return;
+
+            const inputEl   = document.getElementById('chatMessageInput');
+            const fileInput = document.getElementById('chatAttachmentInput');
+            const previewWrapper = document.getElementById('attachmentPreviewWrapper');
+            const text      = inputEl ? inputEl.value.trim() : '';
+            const file      = fileInput?.files?.[0] ?? null;  // capture before clearing
+
+            if (!text && !file) return;
+
+            // ── 1. Clear text input immediately ──
+            if (inputEl) {
+                inputEl.value = '';
+                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            // ── 2. Clear file input AND Livewire $attachment state ──
+            //    We call removeAttachment() here because we've already captured
+            //    the File object above. This ensures:
+            //    (a) The PHP-rendered preview div disappears on next Livewire morph
+            //    (b) $attachment is null, so the next queue item starts clean
+            //    The actual file is re-uploaded in processQueue() via $wire.upload()
+            if (previewWrapper) {
+                previewWrapper.innerHTML = '';
+            }
+            
+            if (file) {
+                if (fileInput) fileInput.value = '';
+                component.$wire.call('removeAttachment');
+            }
+
+            // ── 3. Enqueue ──
+            const tempId = 'q-' + Date.now() + '-' + (++tempCounter);
+            insertOptimisticBubble(tempId, text, file);
+            queue.items.push({ tempId, text, file: file ?? null, previewDataUrl: null });
+            processQueue();
+        };
+
+        // ── End of Send Queue ─────────────────────────────────────────
+
+
+
         const statusModalElement = document.getElementById('statusModal');
         const statusModal = statusModalElement ? new bootstrap.Modal(statusModalElement) : null;
 
@@ -1113,23 +1478,25 @@
             messageCountByChatroom: {},
         };
 
-        const scrollToBottom = (force = false) => {
-            const chatMessages = document.getElementById('chatMessages');
-            if (!chatMessages) return;
+        const getScrollEl = () =>
+            document.querySelector('.chat-messages-wrapper') ?? document.getElementById('chatMessages');
 
-            const isNearBottom =
-                chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
+        const scrollToBottom = (force = false) => {
+            const el = getScrollEl();
+            if (!el) return;
+
+            const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 
             if (force || isNearBottom) {
                 requestAnimationFrame(() => {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    el.scrollTop = el.scrollHeight;
                 });
             }
         };
 
         const syncChatScrollPosition = () => {
-            const chatMessages = document.getElementById('chatMessages');
-            if (!chatMessages) return;
+            const el = getScrollEl();
+            if (!el) return;
 
             const component = Livewire.all()[0];
             if (!component) return;
@@ -1140,15 +1507,12 @@
 
             if (!currentChatroomId) return;
 
-            const messages = chatMessages.querySelectorAll('.message');
-            const messageCount = messages.length;
+            // Count messages in both containers
+            const messageCount = el.querySelectorAll('.message').length;
             const previousCount = chatState.messageCountByChatroom[currentChatroomId] ?? 0;
 
-            const hasNewMessage = messageCount > previousCount;
-
-            // Scroll setiap ada msg baru
-            if (hasNewMessage) {
-                scrollToBottom(chatMessages);
+            if (messageCount > previousCount) {
+                scrollToBottom();
             }
 
             chatState.messageCountByChatroom[currentChatroomId] = messageCount;
@@ -1283,8 +1647,30 @@
             subscribeToChatroom(chatRoomId);
         });
 
-        // Mobile slide toggle
+        // ── commit hook: safety net for race condition ─────────────
+        // If message-confirmed fires at the same moment as a Livewire commit,
+        // this ensures any bubble already marked for removal is hidden
+        // before morph has a chance to paint the server-rendered copy.
+        // The confirmed set is drained after each commit completes.
+        const pendingRemoval = new Set();
+
+        Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+            succeed(({ snapshot, effect }) => {
+                // After Livewire has finished committing & morphing, drain any
+                // bubbles that were confirmed during this round-trip.
+                pendingRemoval.forEach(tempId => {
+                    document.querySelector(`#optimisticMessages .message[data-temp-id="${tempId}"]`)?.remove();
+                    pendingRemoval.delete(tempId);
+                });
+            });
+        });
+
+        // ── morph.updated: mobile slide + scroll ──
+        // #optimisticMessages is wire:ignore so Livewire never morphs it.
+        // Bubbles are removed directly in onQueueItemConfirmed (immediate).
+        // The commit hook above is the safety net for edge-case race conditions.
         Livewire.hook('morph.updated', () => {
+            // Mobile slide toggle
             const chatContainer = document.getElementById('chatContainer');
             const component = Livewire.all()[0];
 
@@ -1303,7 +1689,6 @@
             }
 
             scrollToBottom();
-
             syncChatScrollPosition();
             subscribeAllVisible();
         });
