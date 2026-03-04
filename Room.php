@@ -73,14 +73,24 @@ class Room extends Component
         $messageText = $this->newMessage;
         $uploadedAttachment = $this->attachment;
 
-        $this->isSendingMessage = true;
-        $this->sendingAttachmentPreview = $uploadedAttachment
-            ? $uploadedAttachment->temporaryUrl()
-            : null;
-
         $this->reset(['newMessage', 'attachment']);
-        $this->attachmentInputKey++;
         $this->dispatch('reset-file-input');
+
+        $path = null;
+
+        if ($uploadedAttachment) {
+            $path = ImageUploadService::compressAndStore(
+                $uploadedAttachment,
+                'chat-attachments'
+            );
+        }
+
+        $message = Message::create([
+            'nidchatroom' => $this->chatRoomId,
+            'niduser' => Auth::id(),
+            'ctext' => $messageText,
+            'cattachment_path' => $path,
+        ]);
 
         try {
             $path = null;
@@ -92,20 +102,6 @@ class Room extends Component
                 );
             }
 
-            $message = Message::create([
-                'nidchatroom' => $this->chatRoomId,
-                'niduser' => Auth::id(),
-                'ctext' => $messageText,
-                'cattachment_path' => $path,
-            ]);
-
-            broadcast(new ChatMessageSent($message))->toOthers();
-
-            $this->refreshChatState();
-        } finally {
-            $this->isSendingMessage = false;
-            $this->sendingAttachmentPreview = null;
-        }
     }
 
     public function messageReceived($event)
