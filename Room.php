@@ -27,6 +27,7 @@ class Room extends Component
     public $statusReason = '';
     public $idClose = null;
     public $attachment;
+    public $queuedAttachment;
     public $firstUnreadMessageId = null;
 
     protected function canManageStatus(?ChatRoom $chatRoom): bool
@@ -68,9 +69,14 @@ class Room extends Component
         }
 
         try {
+            $attachmentToSend = $this->queuedAttachment ?: $this->attachment;
+
             // Validate attachment if present
-            if ($this->attachment) {
-                $this->validate(['attachment' => 'image|max:10240']);
+            if ($attachmentToSend) {
+                $this->validate([
+                    'queuedAttachment' => 'nullable|image|max:10240',
+                    'attachment' => 'nullable|image|max:10240',
+                ]);
             }
 
             $text = trim($text);
@@ -81,15 +87,15 @@ class Room extends Component
             }
 
             // Nothing to send
-            if ($text === '' && !$this->attachment) {
+            if ($text === '' && !$attachmentToSend) {
                 $this->queueFail($tempId);
                 return;
             }
 
             $path = null;
-            if ($this->attachment) {
+            if ($attachmentToSend) {
                 $path = ImageUploadService::compressAndStore(
-                    $this->attachment,
+                    $attachmentToSend,
                     'chat-attachments'
                 );
             }
@@ -104,7 +110,7 @@ class Room extends Component
             broadcast(new ChatMessageSent($message))->toOthers();
 
             $this->refreshChatState();
-            $this->reset(['attachment']);
+            $this->reset(['attachment', 'queuedAttachment']);
 
             // Signal JS queue: this item is done → remove optimistic bubble → process next
             $this->dispatch('message-confirmed',
