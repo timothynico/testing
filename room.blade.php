@@ -1318,10 +1318,10 @@
 
             if (item.file) {
                 component.$wire.upload(
-                    'attachment',
+                    'queuedAttachment',
                     item.file,
                     () => {
-                        // Upload finished — $attachment is now set in Livewire
+                        // Upload finished — queuedAttachment is ready in Livewire
                         component.$wire.call('sendMessage', item.tempId, item.text);
                     },
                     () => {
@@ -1402,19 +1402,15 @@
                 inputEl.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
-            // ── 2. Clear file input AND Livewire $attachment state ──
-            //    We call removeAttachment() here because we've already captured
-            //    the File object above. This ensures:
-            //    (a) The PHP-rendered preview div disappears on next Livewire morph
-            //    (b) $attachment is null, so the next queue item starts clean
-            //    The actual file is re-uploaded in processQueue() via $wire.upload()
+            // ── 2. Clear sent preview from UI only ──
+            //    Keep Livewire attachment state untouched so user can pick another
+            //    image while previous queue item is still sending.
             if (previewWrapper) {
                 previewWrapper.innerHTML = '';
             }
             
             if (file) {
                 if (fileInput) fileInput.value = '';
-                component.$wire.call('removeAttachment');
             }
 
             // ── 3. Enqueue ──
