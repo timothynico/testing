@@ -51,14 +51,6 @@ class Room extends Component
         $this->dispatch('chatRoomSelected', chatRoomId: $id);
     }
 
-    public function backToChatRoomList()
-    {
-        $this->chatRoomId = null;
-        $this->chatRoom = null;
-        $this->messages = [];
-        $this->firstUnreadMessageId = null;
-    }
-
     public function sendMessage()
     {
         if (!$this->chatRoomId) {
@@ -246,6 +238,7 @@ class Room extends Component
                     'customer' => $room->applicant->customer,
                     'last_message_at' => $room->messages->first()?->created_at,
                     'unread_count' => $room->unreadCountFor(Auth::id()),
+                    'auto_close_at' => $room->auto_close_at,
                 ];
             });
 
@@ -331,5 +324,13 @@ class Room extends Component
     {
         $this->reset('attachment');
         $this->dispatch('reset-file-input');
+    }
+
+        public function backToChatRoomList()
+    {
+        $this->chatRoomId = null;
+        $this->chatRoom = null;
+        $this->messages = [];
+        $this->firstUnreadMessageId = null;
     }
 }
