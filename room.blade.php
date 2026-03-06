@@ -1568,9 +1568,20 @@
         let activeChatroomChannel = null;
         const subscribedChannels = new Set();
 
-        const subscribeToChannel = (chatroomId) => {
+        const getChatroomStatusFromSidebar = (chatroomId) => {
+            const el = document.querySelector(`[data-chatroom-id="${chatroomId}"]`);
+            return el?.dataset?.status ?? null;
+        };
+
+        const subscribeToChannel = (chatroomId, chatroomStatus = null) => {
             if (!window.Echo || !chatroomId) return;
             const id = parseInt(chatroomId);
+            const status = chatroomStatus ?? getChatroomStatusFromSidebar(id);
+
+            if (status !== 'in_progress') {
+                return;
+            }
+
             if (subscribedChannels.has(id)) return;
 
             subscribedChannels.add(id);
@@ -1610,7 +1621,9 @@
 
         const subscribeAllVisible = () => {
             document.querySelectorAll('[data-chatroom-id]').forEach(el => {
-                subscribeToChannel(el.dataset.chatroomId);
+                if (el.dataset.status === 'in_progress') {
+                    subscribeToChannel(el.dataset.chatroomId, el.dataset.status);
+                }
             });
         };
 
@@ -1630,7 +1643,9 @@
                         if (component) {
                             component.$wire.call('refreshSidebar');
                             // Subscribe chatroom baru setelah sidebar refresh
-                            if (e.chatroom_id) subscribeToChannel(e.chatroom_id);
+                            if (e.chatroom_id) {
+                                subscribeToChannel(e.chatroom_id, e.status ?? e.cstatus ?? null);
+                            }
                         }
                 })
                 .subscribed(() => {
