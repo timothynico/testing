@@ -102,15 +102,11 @@ class Room extends Component
                 'cattachment_path' => $path,
             ]);
 
-            $message->loadMissing('sender');
-            $messagePayload = $this->formatMessage($message);
-
             broadcast(new ChatMessageSent($message))->toOthers();
 
-            $this->dispatch('chat-message-appended', message: $messagePayload);
+            $this->refreshChatState();
             $this->reset(['attachment']);
             $this->shouldDisplayAttachmentPreview = true;
-            $this->markAsRead();
 
             // Signal JS queue: this item is done → remove optimistic bubble → process next
             $this->dispatch('message-confirmed',
@@ -135,7 +131,6 @@ class Room extends Component
     public function messageReceived($event)
     {
         $this->messages[] = [
-            'nidmessage' => $event['nidmessage'] ?? null,
             'ctext' => $event['ctext'],
             'cattachment_path' => $event['cattachment_path'],
             'created_at' => $event['created_at'],
@@ -143,40 +138,6 @@ class Room extends Component
             'user' => [
                 'name' => $event['cusername']
             ]
-        ];
-    }
-
-    public function appendLatestMessage(): void
-    {
-        if (!$this->chatRoomId) {
-            return;
-        }
-
-        $message = Message::with('sender')
-            ->where('nidchatroom', $this->chatRoomId)
-            ->latest('nidmessage')
-            ->first();
-
-        if (!$message) {
-            return;
-        }
-
-        $this->dispatch('chat-message-appended', message: $this->formatMessage($message));
-        $this->markAsRead();
-    }
-
-    private function formatMessage(Message $message): array
-    {
-        return [
-            'nidmessage' => $message->nidmessage,
-            'ctext' => $message->ctext,
-            'cattachment_path' => $message->cattachment_path,
-            'created_at' => $message->created_at,
-            'created_at_iso' => optional($message->created_at)->toISOString(),
-            'niduser' => $message->niduser,
-            'user' => [
-                'name' => $message->sender->name ?? 'Unknown',
-            ],
         ];
     }
 
