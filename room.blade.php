@@ -10,12 +10,11 @@
                         <i class="bi bi-search"></i>
                     </span>
                     <input type="text" class="form-control border-start-0"
-                        placeholder="{{ __('Search feedback...') }}" id="searchFeedback"
-                        wire:model.live.debounce.500ms="search">
+                        placeholder="{{ __('Search feedback...') }}" id="searchFeedback">
                 </div>
 
                 <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm" id="filterMenu" wire:model.live.debounce.500ms="filterMenu">
+                    <select class="form-select form-select-sm" id="filterMenu">
                         <option value="">{{ __('All Menus') }}</option>
                         <option value="delivery">{{ __('Delivery') }}</option>
                         <option value="invoice">{{ __('Invoice') }}</option>
@@ -27,7 +26,7 @@
                         <option value="other">{{ __('Other') }}</option>
                     </select>
 
-                    <select class="form-select form-select-sm" id="filterStatus" wire:model.live.debounce.500ms="filterStatus">
+                    <select class="form-select form-select-sm" id="filterStatus">
                         <option value="">{{ __('All Status') }}</option>
                         <option value="in_progress">{{ __('In Progress') }}</option>
                         <option value="resolved">{{ __('Resolved') }}</option>
@@ -1163,6 +1162,44 @@
             return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
         }
 
+        // ── Client-side sidebar filter ─────────────────────────────────
+        const searchInput  = document.getElementById('searchFeedback');
+        const menuSelect   = document.getElementById('filterMenu');
+        const statusSelect = document.getElementById('filterStatus');
+
+        function applyFilters() {
+            const search = searchInput?.value.trim().toLowerCase() ?? '';
+            const menu   = menuSelect?.value ?? '';
+            const status = statusSelect?.value ?? '';
+
+            document.querySelectorAll('#feedbackList .feedback-item').forEach(item => {
+                const itemUser   = (item.dataset.user   ?? '').toLowerCase();
+                const itemMenu   = (item.dataset.menu   ?? '').toLowerCase();
+                const itemStatus = (item.dataset.status ?? '').toLowerCase();
+
+                // Cari juga di title/description
+                const titleEl = item.querySelector('.feedback-title');
+                const descEl  = item.querySelector('.feedback-description');
+                const title   = (titleEl?.textContent ?? '').toLowerCase();
+                const desc    = (descEl?.textContent  ?? '').toLowerCase();
+
+                const matchSearch = !search
+                    || itemUser.includes(search)
+                    || title.includes(search)
+                    || desc.includes(search);
+
+                const matchMenu   = !menu   || itemMenu   === menu.toLowerCase();
+                const matchStatus = !status || itemStatus === status.toLowerCase();
+
+                item.style.display = (matchSearch && matchMenu && matchStatus) ? '' : 'none';
+            });
+        }
+
+        searchInput ?.addEventListener('input',  applyFilters);
+        menuSelect  ?.addEventListener('change', applyFilters);
+        statusSelect?.addEventListener('change', applyFilters);
+        // ── End client-side filter ──────────────────────────────────────
+
         // ── Status icon HTML ─────────────────────────────────────────
 
         function statusIconHtml(status) {
@@ -1590,7 +1627,11 @@
                     console.log('New chatroom created:', e);
                     const component = Livewire.all()[0];
                     window.checkUnreadMessages();
-                    if (component) component.$wire.call('refreshSidebar');
+                        if (component) {
+                            component.$wire.call('refreshSidebar');
+                            // Subscribe chatroom baru setelah sidebar refresh
+                            if (e.chatroom_id) subscribeToChannel(e.chatroom_id);
+                        }
                 })
                 .subscribed(() => {
                     console.log('Subscribed to user channel:', channelName);
@@ -1635,7 +1676,6 @@
         }
 
         subscribeAllVisible();
-        setTimeout(() => subscribeAllVisible(), 500);
 
         // Mark as read saat user balik fokus ke tab
         document.addEventListener('visibilitychange', () => {
@@ -1699,7 +1739,6 @@
 
             scrollToBottom();
             syncChatScrollPosition();
-            subscribeAllVisible();
         });
     }
 </script>
