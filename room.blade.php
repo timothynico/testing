@@ -1564,6 +1564,178 @@
             chatState.messageCountByChatroom[currentChatroomId] = messageCount;
         };
 
+        const statusBadgeClass = (status) => {
+            if (status === 'in_progress') return 'bg-warning text-dark';
+            if (status === 'resolved') return 'bg-success text-white';
+            if (status === 'closed') return 'bg-danger text-white';
+            return 'bg-secondary text-white';
+        };
+
+        const statusLabel = (status) => (status || '').replace(/_/g, ' ')
+            .replace(/\b\w/g, (m) => m.toUpperCase());
+
+        const getSidebarItem = (chatroomId) =>
+            document.querySelector(`#feedbackList .feedback-item[data-chatroom-id="${chatroomId}"]`);
+
+        const moveSidebarItemToTop = (chatroomId) => {
+            const feedbackList = document.getElementById('feedbackList');
+            const item = getSidebarItem(chatroomId);
+            if (!feedbackList || !item) return;
+            feedbackList.prepend(item);
+        };
+
+        const ensureUnreadBadge = (item) => {
+            let badge = item.querySelector('.unread-badge');
+            if (!badge) {
+                const rightColumn = item.querySelector('.d-flex.flex-column.justify-content-between.align-items-end');
+                if (!rightColumn) return null;
+                badge = document.createElement('span');
+                badge.className = 'unread-badge mt-1 d-inline-block';
+                rightColumn.insertBefore(badge, rightColumn.querySelector('.badge'));
+            }
+            return badge;
+        };
+
+        const updateSidebarOnIncomingMessage = (event, isActiveChatroom) => {
+            const item = getSidebarItem(event.nidchatroom);
+            if (!item) return;
+
+            const timeEl = item.querySelector('.feedback-time');
+            if (timeEl) timeEl.textContent = 'Just now';
+
+            if (!isActiveChatroom) {
+                const unreadBadge = ensureUnreadBadge(item);
+                if (unreadBadge) {
+                    const current = parseInt(unreadBadge.textContent || '0', 10) || 0;
+                    unreadBadge.textContent = current + 1;
+                }
+            }
+
+            moveSidebarItemToTop(event.nidchatroom);
+            applyFilters();
+        };
+
+        const appendIncomingMessageToActiveRoom = (event) => {
+            const container = document.getElementById('chatMessages');
+            if (!container) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message incoming';
+            wrapper.dataset.messageId = event.nidmessage || '';
+            wrapper.innerHTML = `
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-sender">${escapeHtml(event.cusername || 'Unknown')}</span>
+                        <span class="message-time">${nowHHMM()}</span>
+                    </div>
+                    <div class="message-bubble"></div>
+                </div>`;
+
+            const bubble = wrapper.querySelector('.message-bubble');
+            if (event.cattachment_path) {
+                const img = document.createElement('img');
+                img.src = `/storage/${event.cattachment_path}`;
+                img.className = 'img-fluid rounded';
+                img.style.maxWidth = '250px';
+                img.style.cursor = 'pointer';
+                img.onclick = () => window.open(img.src);
+                bubble.appendChild(img);
+            }
+
+            if (event.ctext) {
+                const p = document.createElement('p');
+                p.className = 'mb-0';
+                p.textContent = event.ctext;
+                bubble.appendChild(p);
+            }
+
+            container.appendChild(wrapper);
+            scrollToBottom(true);
+        };
+
+        const updateStatusInUi = (chatroomId, status) => {
+            const item = getSidebarItem(chatroomId);
+            if (item) {
+                item.dataset.status = status;
+                const badge = item.querySelector('.badge.rounded-1');
+                if (badge) {
+                    badge.className = `badge rounded-1 ${statusBadgeClass(status)}`;
+                    badge.style.fontSize = '0.7rem';
+                    badge.style.fontWeight = '500';
+                    badge.style.marginTop = '4px';
+                    badge.textContent = statusLabel(status);
+                }
+            }
+
+            const activeHeaderBadge = document.querySelector('.chat-header .badge.text-capitalize');
+            const component = Livewire.all()[0];
+            const activeChatroomId = component?.$wire?.chatRoomId
+                ?? component?.snapshot?.data?.chatRoomId
+                ?? null;
+
+            if (activeHeaderBadge && parseInt(activeChatroomId) === parseInt(chatroomId)) {
+                activeHeaderBadge.className = `badge text-capitalize ${statusBadgeClass(status)}`;
+                activeHeaderBadge.textContent = statusLabel(status);
+            }
+        };
+
+        const buildSidebarItemHtml = (room) => {
+            const statusClass = statusBadgeClass(room.cstatus);
+            const unreadBadge = room.unread_count > 0
+                ? `<span class="unread-badge mt-1 d-inline-block">${room.unread_count}</span>`
+                : '';
+
+            return `
+                <div class="feedback-item"
+                    data-chatroom-id="${room.nidchatroom}"
+                    data-user="${escapeHtml(room.applicant_name || 'Unknown')}"
+                    data-menu="${escapeHtml(room.ctype || '')}"
+                    data-status="${escapeHtml(room.cstatus || 'in_progress')}">
+                    <div class="d-flex justify-content-between align-items-stretch">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="feedback-title mb-0">${escapeHtml(room.creference || `Complaint by ${room.applicant_name || 'Unknown'}`)}</h6>
+                                <span class="feedback-menu">${escapeHtml((room.ctype || '').charAt(0).toUpperCase() + (room.ctype || '').slice(1))}</span>
+                            </div>
+                            <p class="feedback-user mb-0">${escapeHtml(room.applicant_name || 'Unknown')}
+                                <span class="user-role">(${escapeHtml(room.customer_name || 'Customer')})</span>
+                            </p>
+                            <p class="feedback-description text-truncate mb-0 text-capitalize">${escapeHtml(room.cissue || 'Other')}</p>
+                        </div>
+                        <div class="d-flex flex-column justify-content-between align-items-end">
+                            <span class="feedback-time d-block">Just now</span>
+                            ${unreadBadge}
+                            <span class="badge rounded-1 ${statusClass}" style="font-size:0.7rem; font-weight: 500; margin-top: 4px">${statusLabel(room.cstatus || 'in_progress')}</span>
+                        </div>
+                    </div>
+                </div>`;
+        };
+
+        const upsertSidebarRoom = (room) => {
+            const feedbackList = document.getElementById('feedbackList');
+            if (!feedbackList || !room?.nidchatroom) return;
+
+            const existing = getSidebarItem(room.nidchatroom);
+            if (existing) {
+                existing.remove();
+            }
+
+            const temp = document.createElement('div');
+            temp.innerHTML = buildSidebarItemHtml(room).trim();
+            const newItem = temp.firstElementChild;
+            if (!newItem) return;
+
+            newItem.addEventListener('click', () => {
+                const component = Livewire.all()[0];
+                if (!component) return;
+                component.$wire.call('selectChatRoom', room.nidchatroom);
+            });
+
+            feedbackList.prepend(newItem);
+            subscribeToChannel(room.nidchatroom);
+            applyFilters();
+        };
+
         // ── Reverb subscribe ──
         let activeChatroomChannel = null;
         const subscribedChannels = new Set();
@@ -1576,9 +1748,9 @@
             subscribedChannels.add(id);
 
             window.Echo.private(`chatroom.${id}`)
-                .listen('.chat.message.sent', () => {
+                .listen('.chat.message.sent', (e) => {
                     window.checkUnreadMessages();
-                    console.log('Message received from chatroom:', id);
+                    console.log('Message received from chatroom:', id, e);
                     const component = Livewire.all()[0];
                     if (!component) return;
 
@@ -1586,16 +1758,17 @@
                         ?? component.snapshot?.data?.chatRoomId
                         ?? null;
 
-                    if (parseInt(activeChatroom) === id) {
-                        component.$wire.call('refreshChatState');
-                    } else {
-                        component.$wire.call('$refresh');
+                    const isActiveChatroom = parseInt(activeChatroom) === id;
+                    updateSidebarOnIncomingMessage(e, isActiveChatroom);
+
+                    if (isActiveChatroom && parseInt(e.niduser) !== parseInt({{ Auth::id() }})) {
+                        appendIncomingMessageToActiveRoom(e);
+                        component.$wire.call('markAsRead');
                     }
                 })
                 .listen('.chat.status.updated', (e) => {
                     console.log('Status updated for chatroom:', id, e.status);
-                    const component = Livewire.all()[0];
-                    if (component) component.$wire.call('$refresh');
+                    updateStatusInUi(id, e.status);
                 })
                 .error((err) => console.error('Channel error:', err));
 
@@ -1625,13 +1798,10 @@
             window.Echo.private(channelName)
                 .listen('.chatroom.created', (e) => {
                     console.log('New chatroom created:', e);
-                    const component = Livewire.all()[0];
                     window.checkUnreadMessages();
-                        if (component) {
-                            component.$wire.call('refreshSidebar');
-                            // Subscribe chatroom baru setelah sidebar refresh
-                            if (e.chatroom_id) subscribeToChannel(e.chatroom_id);
-                        }
+                    if (e?.chatroom) {
+                        upsertSidebarRoom(e.chatroom);
+                    }
                 })
                 .subscribed(() => {
                     console.log('Subscribed to user channel:', channelName);

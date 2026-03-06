@@ -32,6 +32,7 @@ class ChatStatusUpdated implements ShouldBroadcastNow
         return [
             'chatRoomId' => $this->chatRoom->nidchatroom,
             'status'     => $this->chatRoom->cstatus,
+            'updated_at' => now()->toISOString(),
         ];
     }
 
