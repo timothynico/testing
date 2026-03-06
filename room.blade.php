@@ -167,7 +167,6 @@
                     {{-- Chat Messages (server-rendered, morphed by Livewire) --}}
                     <div class="chat-messages-wrapper">
                         <div class="chat-messages" id="chatMessages"
-                            data-chat-room-id="{{ $chatRoom->nidchatroom }}"
                             data-first-unread-message-id="{{ $firstUnreadMessageId }}">
                         @php
                             $sortedMembers = $chatRoom->members->sortBy(function ($member) use ($chatRoom) {
@@ -271,7 +270,7 @@
                                     $label = $dt->isToday() ? __('Today') : ($dt->isYesterday() ? __('Yesterday') : $dt->format('d/m/y'));
                                 @endphp
 
-                                <div class="date-separator my-2" data-date-key="{{ $date }}"><span>{{ $label }}</span></div>
+                                <div class="date-separator my-2"><span>{{ $label }}</span></div>
 
                                 @foreach($msgs as $message)
                                     <div class="message {{ $message['niduser'] == Auth::user()->id ? 'outgoing' : 'incoming' }}"
@@ -1163,104 +1162,6 @@
             return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
         }
 
-        function formatTimeHHMM(dateInput) {
-            const d = new Date(dateInput);
-            if (Number.isNaN(d.getTime())) return nowHHMM();
-            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-        }
-
-        function formatDateKey(dateInput) {
-            const d = new Date(dateInput);
-            if (Number.isNaN(d.getTime())) return null;
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        }
-
-        function formatDateLabel(dateInput) {
-            const d = new Date(dateInput);
-            if (Number.isNaN(d.getTime())) return '';
-
-            const today = new Date();
-            const yesterday = new Date();
-            yesterday.setDate(today.getDate() - 1);
-
-            const sameDate = (a, b) =>
-                a.getFullYear() === b.getFullYear()
-                && a.getMonth() === b.getMonth()
-                && a.getDate() === b.getDate();
-
-            if (sameDate(d, today)) return @js(__('Today'));
-            if (sameDate(d, yesterday)) return @js(__('Yesterday'));
-
-            const yy = String(d.getFullYear()).slice(-2);
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            return `${dd}/${mm}/${yy}`;
-        }
-
-        function ensureDateSeparator(container, dateKey, createdAt) {
-            if (!container || !dateKey) return;
-
-            const lastSeparator = container.querySelector('.date-separator:last-of-type');
-            if (lastSeparator && lastSeparator.dataset.dateKey === dateKey) return;
-
-            const separator = document.createElement('div');
-            separator.className = 'date-separator my-2';
-            separator.dataset.dateKey = dateKey;
-            separator.innerHTML = `<span>${escapeHtml(formatDateLabel(createdAt))}</span>`;
-            container.appendChild(separator);
-        }
-
-        function appendServerMessage(message) {
-            const container = document.getElementById('chatMessages');
-            if (!container || !message) return;
-
-            const messageId = Number(message.nidmessage || 0);
-            if (messageId && container.querySelector(`.message[data-message-id="${messageId}"]`)) {
-                return;
-            }
-
-            const isOutgoing = Number(message.niduser) === Number({{ (int) Auth::id() }});
-            const dateKey = formatDateKey(message.created_at_iso ?? message.created_at);
-            ensureDateSeparator(container, dateKey, message.created_at_iso ?? message.created_at);
-
-            const wrapper = document.createElement('div');
-            wrapper.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
-            if (messageId) wrapper.dataset.messageId = String(messageId);
-
-            const sender = message?.user?.name ?? 'Unknown';
-            const text = (message?.ctext ?? '').trim();
-            const attachmentPath = (message?.cattachment_path ?? '').trim();
-            const time = formatTimeHHMM(message.created_at_iso ?? message.created_at);
-
-            let bubbleHtml = '';
-            if (attachmentPath) {
-                const imgSrc = `/storage/${escapeHtml(attachmentPath)}`;
-                bubbleHtml += `<img src="${imgSrc}" class="img-fluid rounded" style="max-width: 250px; cursor:pointer;" onclick="window.open(this.src)">`;
-            }
-            if (attachmentPath && text) {
-                bubbleHtml += '<p class="mt-0"></p>';
-            }
-            if (text) {
-                bubbleHtml += `<p class="mb-0">${escapeHtml(text)}</p>`;
-            }
-
-            wrapper.innerHTML = `
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-sender">${escapeHtml(sender)}</span>
-                        <span class="message-time">${time}</span>
-                    </div>
-                    <div class="message-bubble">${bubbleHtml}</div>
-                </div>
-            `;
-
-            container.appendChild(wrapper);
-            scrollToBottom(true);
-        }
-
         // ── Client-side sidebar filter ─────────────────────────────────
         const searchInput  = document.getElementById('searchFeedback');
         const menuSelect   = document.getElementById('filterMenu');
@@ -1511,11 +1412,6 @@
             onQueueItemFailed(tempId);
         });
 
-
-        Livewire.on('chat-message-appended', ({ message }) => {
-            appendServerMessage(message);
-        });
-
         // ── Form submit handler ───────────────────────────────────────
 
         window.handleOptimisticSend = function(event) {
@@ -1691,7 +1587,7 @@
                         ?? null;
 
                     if (parseInt(activeChatroom) === id) {
-                        component.$wire.call('appendLatestMessage');
+                        component.$wire.call('refreshChatState');
                     } else {
                         component.$wire.call('$refresh');
                     }
