@@ -15,9 +15,9 @@
         <div class="card-body py-2">
 
             {{-- ROW 1 : DATE + SEARCH + ACTION --}}
-            <div class="d-flex flex-row align-items-center gap-2 mb-3">
+            <div class="filter-row d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 mb-3">
                 <!-- Date Filter (Modern Range Input) -->
-                <div class="input-group input-group-sm flex-shrink-0" style="width:220px">
+                <div class="input-group input-group-sm flex-shrink-0 date-filter-group">
                     <span class="input-group-text bg-white text-muted">
                         <i class="bi bi-calendar3"></i>
                     </span>
@@ -31,7 +31,7 @@
 
                 <!-- Search -->
                 <form method="GET" action="{{ route('orderreturn.order_return_monitoring') }}" id="filterForm"
-                    class="flex-grow-1 me-2">
+                    class="flex-grow-1 search-filter-form">
 
                     <input type="hidden" name="type" id="typeInput" value="{{ request('type', 'all') }}">
                     <input type="hidden" name="status" id="statusInput" value="{{ request('status') }}">
@@ -50,7 +50,7 @@
 
 
                 <!-- Action -->
-                <a href="{{ route('orderreturn.request_email') }}" class="btn btn-brand btn-sm flex-shrink-0"
+                <a href="{{ route('orderreturn.request_email') }}" class="btn btn-brand btn-sm flex-shrink-0 request-email-btn"
                     id="btnGenerateRequestEmail">
                     <i class="bi bi-envelope me-1"></i>
                     {{ __('Generate Request Email') }}
@@ -58,33 +58,34 @@
             </div>
 
             {{-- ROW 2 : TYPE & STATUS PILLS --}}
-            <div class="d-flex align-items-center gap-2 flex-wrap pt-2 border-top" id="requestTypeFilters">
-                <!-- Request Type Filter -->
-                <span class="text-muted small fw-semibold me-2">{{ __('Type') }}</span>
+            <div class="filter-pill-group pt-2 border-top" id="requestTypeFilters">
+                <div class="d-flex align-items-center gap-2 flex-wrap type-filter-row">
+                    <!-- Request Type Filter -->
+                    <span class="text-muted small fw-semibold me-2">{{ __('Type') }}</span>
 
-                <button
-                    class="btn btn-sm rounded-pill type-filter {{ request('type', 'all') === 'all' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
-                    data-type="all">
-                    {{ __('All') }}
-                </button>
+                    <button
+                        class="btn btn-sm rounded-pill type-filter {{ request('type', 'all') === 'all' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
+                        data-type="all">
+                        {{ __('All') }}
+                    </button>
 
 
-                <button
-                    class="btn btn-sm rounded-pill type-filter {{ request('type') === 'order' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
-                    data-type="order">
-                    {{ __('Order') }}
-                </button>
+                    <button
+                        class="btn btn-sm rounded-pill type-filter {{ request('type') === 'order' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
+                        data-type="order">
+                        {{ __('Order') }}
+                    </button>
 
-                <button
-                    class="btn btn-sm rounded-pill type-filter {{ request('type') === 'return' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
-                    data-type="return">
-                    {{ __('Return') }}
-                </button>
+                    <button
+                        class="btn btn-sm rounded-pill type-filter {{ request('type') === 'return' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
+                        data-type="return">
+                        {{ __('Return') }}
+                    </button>
+                </div>
 
-                <span class="mx-2 text-muted">|</span>
-
-                <!-- Status Filter -->
-                <span class="text-muted small fw-semibold me-2">{{ __('Status') }}</span>
+                <div class="d-flex align-items-center gap-2 flex-wrap status-filter-row">
+                    <!-- Status Filter -->
+                    <span class="text-muted small fw-semibold me-2">{{ __('Status') }}</span>
 
                 <button
                     class="btn btn-sm rounded-pill status-filter {{ request('status') === 'Pending' ? 'btn-brand active-filter' : 'btn-outline-secondary' }}"
@@ -115,6 +116,7 @@
                     data-status="Delivery Note Created">
                     {{ __('DN Created') }}
                 </button>
+                </div>
 
             </div>
 
@@ -236,14 +238,14 @@
             </div>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
+            <div class="table-responsive order-return-table-wrapper">
                 <table class="table table-hover align-middle mb-0" id="orderReturnTable">
                     <thead class="table-light">
                         <tr>
-                            <th class="px-3 py-2 col-request_id">ID</th>
-                            <th class="px-3 py-2 text-center col-request_type">{{ __('Type') }}</th>
-                            <th class="px-3 py-2 text-center col-request_date">{{ __('Request Date') }}</th>
-                            <th class="px-3 py-2 col-company_name">{{ __('Company Name') }}</th>
+                            <th class="px-3 py-2 sticky-col sticky-col-1 col-request_id">ID</th>
+                            <th class="px-3 py-2 text-center sticky-col sticky-col-2 col-request_type">{{ __('Type') }}</th>
+                            <th class="px-3 py-2 text-center sticky-col sticky-col-3 col-request_date">{{ __('Request Date') }}</th>
+                            <th class="px-3 py-2 sticky-col sticky-col-4 col-company_name">{{ __('Company Name') }}</th>
                             <th class="px-3 py-2 col-pallet_type">{{ __('Pallet Type') }}</th>
                             <th class="px-3 py-2 col-from_warehouse">{{ __('From Warehouse') }}</th>
                             <th class="px-3 py-2 col-from_address">{{ __('From Address') }}</th>
@@ -286,26 +288,26 @@
 
                             <tr class="request-row-clickable" data-request-uuid="{{ $request->uuid }}" data-request-id="{{ $request->nid }}"
                                 data-tour="request-row">
-                                <td class="col-request_id">
+                                <td class="sticky-col sticky-col-1 col-request_id">
                                     <span class="fw-semibold text-success">
                                         {{ $request->nid }}
                                     </span>
                                 </td>
 
-                                <td class="text-center col-request_type">
+                                <td class="text-center sticky-col sticky-col-2 col-request_type">
                                     <span class="badge {{ $typeClass }} rounded-pill">
                                         <i class="bi {{ $typeIcon }} me-1"></i>
                                         {{ ucfirst($request->crequest_type) }}
                                     </span>
                                 </td>
 
-                                <td class="text-center col-request_date">
+                                <td class="text-center sticky-col sticky-col-3 col-request_date">
                                     {{ $request->drequired_date
                                         ? str($request->drequired_date)->substr(0, 10)
                                         : str($request->dreturn_date)->substr(0, 10) }}
                                 </td>
 
-                                <td class="col-company_name">
+                                <td class="sticky-col sticky-col-4 col-company_name">
                                     {{ $request->ccompany_name }}
                                 </td>
 
@@ -555,6 +557,65 @@
             white-space: nowrap;
             display: inline-block;
         }
+
+        .date-filter-group {
+            width: 220px;
+        }
+
+        .order-return-table-wrapper {
+            overflow-x: auto;
+        }
+
+        #orderReturnTable {
+            min-width: 1250px;
+        }
+
+        #orderReturnTable .sticky-col {
+            position: sticky;
+            z-index: 2;
+            background-color: #fff;
+        }
+
+        #orderReturnTable thead .sticky-col {
+            z-index: 4;
+            background-color: #f8f9fa;
+        }
+
+        #orderReturnTable .sticky-col-1 {
+            left: 0;
+            min-width: 90px;
+        }
+
+        #orderReturnTable .sticky-col-2 {
+            left: 90px;
+            min-width: 130px;
+        }
+
+        #orderReturnTable .sticky-col-3 {
+            left: 220px;
+            min-width: 160px;
+        }
+
+        #orderReturnTable .sticky-col-4 {
+            left: 380px;
+            min-width: 220px;
+            box-shadow: 2px 0 0 rgba(0, 0, 0, 0.06);
+        }
+
+        @media (max-width: 767.98px) {
+            .date-filter-group,
+            .search-filter-form,
+            .request-email-btn {
+                width: 100%;
+            }
+
+            .filter-pill-group .status-filter-row {
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px dashed #dee2e6;
+            }
+        }
+
     </style>
 @endpush
 
