@@ -35,7 +35,7 @@
         <div class="card-body">
             <div class="row g-3">
                 <!-- Left side: Form inputs (3/4) -->
-                <div class="col-6 col-md-9">
+                <div class="col-12 col-md-9">
                     <div class="row g-3">
                         <!-- Required/ETA Return Date -->
                         <div class="col-6 col-md-4">
@@ -190,7 +190,7 @@
                             </div>
 
                             <!-- Additional Notes -->
-                            <div class="col-6 col-md-4">
+                            <div class="col-12 col-md-4">
                                 <label for="additionalNotes" class="form-label fw-semibold">
                                     {{ __('Additional Notes') }}
                                 </label>
@@ -204,7 +204,7 @@
                     </div>
 
                     <!-- Right side: Pallet Image (1/4) -->
-                    <div class="col-6 col-md-3">
+                    <div class="col-12 col-md-3">
                         <div id="palletVisualization" class="text-center h-100 d-flex flex-column justify-content-center">
                             <label class="form-label fw-semibold">{{ __('Pallet Visualization') }}</label>
                             <div class="pallet-image-container bg-light rounded border p-3">
