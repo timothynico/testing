@@ -12,27 +12,27 @@
 @section('content')
     {{-- Quick Actions --}}
     <div class="dashboard-section">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="text-uppercase text-secondary fw-semibold me-1"
+        <div class="d-flex align-items-center gap-2 flex-wrap quick-actions-mobile">
+            <span class="text-uppercase text-secondary fw-semibold me-1 quick-actions-title"
                 style="font-size: 0.85rem; letter-spacing: 0.3px;">{{ __('Quick Actions') }}</span>
 
-            <a href="{{ route('agreement.create') }}" class="btn btn-primary btn-sm px-3 py-1">
+            <a href="{{ route('agreement.create') }}" class="btn btn-primary btn-sm px-3 py-1 quick-action-item quick-action-primary">
                 <i class="bi bi-plus me-1"></i>{{ __('Agreement') }}
             </a>
 
-            <a href="{{ route('delivery.create') }}" class="btn btn-success btn-sm px-3 py-1">
+            <a href="{{ route('delivery.create') }}" class="btn btn-success btn-sm px-3 py-1 quick-action-item quick-action-primary">
                 <i class="bi bi-plus me-1"></i>{{ __('Delivery') }}
             </a>
 
-            <a href="{{ route('customers.create') }}" class="btn btn-info btn-sm px-3 py-1">
+            <a href="{{ route('customers.create') }}" class="btn btn-info btn-sm px-3 py-1 quick-action-item quick-action-primary">
                 <i class="bi bi-plus me-1"></i>{{ __('Customer') }}
             </a>
 
-            <a href="{{ route('logisticcompany.create') }}" class="btn btn-danger btn-sm px-3 py-1 text-white">
+            <a href="{{ route('logisticcompany.create') }}" class="btn btn-danger btn-sm px-3 py-1 text-white quick-action-item quick-action-secondary">
                 <i class="bi bi-plus me-1"></i>{{ __('Logistic') }}
             </a>
 
-            <a href="{{ route('company.create') }}" class="btn btn-warning btn-sm px-3 py-1">
+            <a href="{{ route('company.create') }}" class="btn btn-warning btn-sm px-3 py-1 quick-action-item quick-action-secondary">
                 <i class="bi bi-plus me-1"></i>{{ __('Company') }}
             </a>
 
@@ -132,7 +132,7 @@
     <div class="dashboard-section">
         <div class="row g-2">
             {{-- Left Column --}}
-            <div class="col-8">
+            <div class="col-12 col-md-8">
                 {{-- Pallet Distribution --}}
                 <div class="card border shadow-sm mb-2">
                     <div class="card-header bg-white border-bottom py-1 px-2">
@@ -361,7 +361,7 @@
             </div>
 
             {{-- Right Column --}}
-            <div class="col-4">
+            <div class="col-12 col-md-4">
                 {{-- Top Customers --}}
                 <div class="card border shadow-sm mb-2">
                     <div class="card-header bg-white border-bottom py-1 px-2">
@@ -470,6 +470,27 @@
         @media (min-width: 768px) {
             .border-end-md {
                 border-right: 1px solid #dee2e6 !important;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .quick-actions-title {
+                width: 100%;
+                margin-right: 0 !important;
+            }
+
+            .quick-actions-mobile .quick-action-primary {
+                flex: 1 1 calc(33.333% - 0.5rem);
+            }
+
+            .quick-actions-mobile .quick-action-secondary {
+                flex: 1 1 calc(50% - 0.5rem);
+            }
+
+            .quick-actions-mobile .quick-action-item {
+                text-align: center;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
             }
         }
     </style>
