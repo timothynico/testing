@@ -415,6 +415,7 @@
     </div>
 
     {{-- Main Dashboard Content --}}
+    @if (in_array(Auth::user()->customer_role, ['finance', 'purchasing']))
     <div class="dashboard-section">
         <div class="row g-2">
             {{-- Left Column - Charts --}}
@@ -630,6 +631,205 @@
             </div>
         </div>
     </div>
+    @else
+    <div class="dashboard-section">
+        <div class="row g-2">
+            <div class="col-12 col-xl-8">
+                {{-- Stock Forecast Chart --}}
+                <div class="card border shadow-sm mb-2" id="stockForecastCard" style="height: 267px;">
+                    <div class="card-header bg-white border-bottom py-1 px-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2" style="font-size: 0.95rem;">
+                                    <i class="bi bi-graph-up" style="color: #0d6efd; font-size: 0.9rem;"></i>
+                                    {{ __('Daily Stock Movement (14 Days)') }}
+                                    <i class="bi bi-info-circle text-secondary" style="font-size: 0.75rem; cursor: help;"
+                                        data-bs-toggle="tooltip" data-bs-placement="top"
+                                        title="{{ __('Historical and forecasted daily stock levels showing inventory trends and predictions') }}"></i>
+                                </h6>
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Pallet type filter">
+                                @foreach ($stockChartData as $type => $data)
+                                    @php
+                                        $id = 'pallet' . str_replace(' ', '', $type);
+                                    @endphp
+                                    <input type="radio" class="btn-check" name="palletType" id="{{ $id }}"
+                                        value="{{ $type }}" autocomplete="off"
+                                        {{ $loop->first ? 'checked' : '' }}>
+                                    <label class="btn btn-outline-success" for="{{ $id }}"
+                                        style="font-size: 0.9rem; padding: 0.15rem 0.5rem;">
+                                        {{ $type }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-2 d-flex flex-column" style="flex: 1; min-height: 0;">
+                        <div style="flex: 1; position: relative;">
+                            <canvas id="stockForecastChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-4">
+                {{-- Alerts & Exceptions --}}
+                <div class="card border shadow-sm mb-2 d-flex flex-column" id="alertsCard">
+                    <div class="card-header bg-white border-bottom py-1 px-2 flex-shrink-0">
+                        <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2" style="font-size: 0.95rem;">
+                            <i class="bi bi-exclamation-triangle" style="color: #ffc107; font-size: 0.9rem;"></i>
+                            {{ __('Alerts & Exceptions') }}
+                            <i class="bi bi-info-circle text-secondary" style="font-size: 0.75rem; cursor: help;"
+                                data-bs-toggle="tooltip" data-bs-placement="top"
+                                title="{{ __('Alerts for expired agreements, deliveries that have arrived but goods receipt has not been created, and monthly usage awaiting approval') }}">
+                            </i>
+                        </h6>
+                    </div>
+                    <div class="card-body p-2 flex-grow-1" style="min-height: 0; overflow: hidden;">
+                        <div class="d-flex flex-column gap-1 alert-scroll" style="height: 100%; overflow-y: auto; overflow-x: hidden; padding-right: 2px;">
+                            @forelse($alerts as $alert)
+                                @php
+                                    $border = 'info';
+                                    $badge  = 'bg-info';
+                                    $label  = 'Low';
+
+                                    if($alert['title'] === 'Expired Network Agreement' || $alert['title'] === 'Expired Direct Agreement'){
+                                        $border = 'danger';
+                                        $badge  = 'bg-danger';
+                                        $label  = 'High';
+                                    }
+
+                                    if($alert['title'] === 'Missing Goods Receipt'){
+                                        $border = 'warning';
+                                        $badge  = 'bg-warning text-dark';
+                                        $label  = 'Medium';
+                                    }
+                                @endphp
+
+                                <a href="{{ $alert['url'] }}" class="text-decoration-none text-dark alert-item-link">
+                                    <div class="p-2 border-start border-{{ $border }} border-3 bg-light rounded alert-item alert-item-{{ $border }}">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="fw-semibold" style="font-size: 0.8rem;">
+                                                    {{ $alert['title'] }}
+                                                </div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">
+                                                    {{ $alert['text'] }}
+                                                </div>
+                                            </div>
+                                            <i class="bi bi-chevron-right text-muted ms-2 flex-shrink-0 alert-chevron" style="font-size: 0.75rem; margin-top: 2px;"></i>
+                                        </div>
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="d-flex justify-content-center align-items-center h-100 text-muted" style="font-size: 0.8rem;">
+                                    {{ __('No alerts available') }}
+                                </div>
+                            @endempty
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2">
+            <div class="col-12">
+                {{-- Recent Pallet Movements --}}
+                <div class="card border shadow-sm" style="height: 253px;">
+                    <div class="card-header bg-white border-bottom py-1 px-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2" style="font-size: 0.95rem;">
+                                <i class="bi bi-arrow-left-right" style="color: #198754; font-size: 0.9rem;"></i>
+                                {{ __('Recent Pallet Movements') }}
+                                <i class="bi bi-info-circle text-secondary" style="font-size: 0.75rem; cursor: help;"
+                                    data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="{{ __('Latest pallet transactions including deliveries, returns, and transfers between locations') }}"></i>
+                            </h6>
+                            <a href="{{ route('orderreturn.order_return_monitoring') }}"
+                                class="text-decoration-none fw-medium"
+                                style="font-size: 0.8rem; color: #146C43;">{{ __('View All') }}</a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0" style="overflow-y: auto; max-height: calc(100% - 41px);">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 sticky-table" style="font-size: 0.85rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="py-2 px-2 sticky-col-1" style="font-weight: 600;">{{ __('TYPE') }}</th>
+                                        <th class="py-2 px-2 sticky-col-2" style="font-weight: 600;">{{ __('DOC. NUMBER') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('ETD') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('ETA') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('SENDER') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('Snd Addr') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('RECEIVER') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('Rcv Addr') }}</th>
+                                        <th class="py-2 px-2" style="font-weight: 600;">{{ __('LOGISTIC') }}</th>
+                                        <th class="py-2 px-2 text-center" style="font-weight: 600;">{{ __('QTY') }}
+                                        </th>
+                                        <th class="py-2 px-2 text-center" style="font-weight: 600;">{{ __('STATUS') }}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if ($recentMovements->isEmpty())
+                                        <tr>
+                                            <td colspan="9" class="text-center py-4 text-muted">
+                                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                                <p class="mb-0 mt-2">{{ __('No recent movements') }}</p>
+                                            </td>
+                                        </tr>
+                                    @else
+                                        @foreach ($recentMovements as $movement)
+                                            <tr class="clickable-row"
+                                                onclick="window.location='{{ route('delivery.show', $movement->uuid) }}'"
+                                                style="cursor: pointer;">
+                                                <td class="py-2 px-2 sticky-col-1">
+                                                    @if ($movement->type === 'DN')
+                                                        <span class="badge bg-danger">DN</span>
+                                                    @else
+                                                        <span class="badge bg-success">GR</span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-2 px-2 sticky-col-2">
+                                                    <span class="fw-semibold text-primary">{{ $movement->doc_no }}</span>
+                                                </td>
+                                                <td class="py-2 px-2 text-muted">{{ $movement->etd }}</td>
+                                                <td class="py-2 px-2 text-muted">{{ $movement->eta }}</td>
+                                                <td class="py-2 px-2">{{ $movement->sender }}</td>
+                                                <td class="py-2 px-2">{{ $movement->sender_city }}</td>
+                                                <td class="py-2 px-2">{{ $movement->receiver }}</td>
+                                                <td class="py-2 px-2">{{ $movement->receiver_city }}</td>
+                                                <td class="py-2 px-2 text-muted">{{ $movement->logistic ?? '-' }}</td>
+                                                <td class="py-2 px-2 text-center fw-semibold">
+                                                    {{ number_format($movement->qty) }}
+                                                </td>
+                                                <td class="py-2 px-2 text-center">
+                                                    @if ($movement->status === 'In Transit')
+                                                        <span class="badge bg-primary" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-truck"></i> {{ __('In Transit') }}
+                                                        </span>
+                                                    @elseif($movement->status === 'Delivered')
+                                                        <span class="badge bg-success" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-check-circle"></i> {{ __('Delivered') }}
+                                                        </span>
+                                                    @else
+                                                        <span class="badge bg-warning" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-clock"></i> {{ __('Pending') }}
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    @endif
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Welcome Modal (First Login) --}}
     @if (Auth::user()->lfirstlogin)
