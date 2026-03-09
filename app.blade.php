@@ -430,6 +430,22 @@
         }
 
         @media (max-width: 991.98px) {
+            .page-header-row {
+                flex-wrap: wrap;
+                row-gap: 0.5rem;
+            }
+
+            .page-header-actions {
+                width: 100%;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 0.75rem !important;
+            }
+
+            .page-header-time {
+                text-align: left !important;
+            }
+
             .mobile-header-row {
                 min-height: 50px;
             }
@@ -886,10 +902,10 @@
         @hasSection('header-left')
             <header class="page-header">
                 <div class="container-fluid px-3 px-lg-4">
-                    <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between page-header-row">
                         @yield('header-left')
 
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3 page-header-actions">
 
                             <button type="button" id="startTourBtn" class="btn btn-sm btn-success btn-header-action">
                                 <i class="bi bi-magic"></i>
@@ -902,7 +918,7 @@
                                 <span class="d-none d-md-inline">{{ __('Help') }}</span>
                             </button>
 
-                            <div class="text-end lh-sm flex-shrink-0">
+                            <div class="text-end lh-sm flex-shrink-0 page-header-time">
                                 <div class="fw-semibold small">
                                     <span class="badge bg-light text-dark me-2">Server</span>
                                     <span id="serverTime">{{ now()->format('d/m/y H:i:s') }}</span>
