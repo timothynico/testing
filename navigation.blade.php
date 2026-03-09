@@ -10,6 +10,7 @@ NAVIGATION COMPONENT
 @php
     $chatRoomIds = \App\Models\ChatRoomDetail::query()
         ->where('niduser', Auth::id())
+        ->whereHas('room', fn($q) => $q->where('cstatus', 'in_progress'))  // ← TO DO: cek ini
         ->pluck('nidchatroom')
         ->map(fn($id) => (int) $id)
         ->values()
@@ -33,9 +34,10 @@ NAVIGATION COMPONENT
     // Customer role label + warehouse name (for warehouse_pic)
     $customerRole = Auth::user()->customer_role;
     $customerRoleLabel = $customerRole ? Auth::user()->getCustomerRoleLabel() : null;
-    $cnmwh = ($isWarehousePic && Auth::user()->nidwh)
-        ? optional(\App\Models\CustomerWarehouse::find(Auth::user()->nidwh))->cnmwh
-        : null;
+    $cnmwh =
+        $isWarehousePic && Auth::user()->nidwh
+            ? optional(\App\Models\CustomerWarehouse::find(Auth::user()->nidwh))->cnmwh
+            : null;
 @endphp
 
 <nav class="navbar navbar-expand-lg navbar-light">
@@ -62,13 +64,19 @@ NAVIGATION COMPONENT
                 </a>
 
                 <div class="d-flex align-items-center gap-2 mobile-header-actions">
+
+                    {{-- Feedback (Mobile Icon) --}}
+                    <a class="nav-link position-relative p-0 js-feedback-link" href="{{ route('chatrooms.index') }}"
+                        title="Feedback">
+                        <i class="bi bi-chat-left-text-fill fs-5"></i>
+                    </a>
+
                     {{-- Notifications (Mobile) --}}
                     <div class="dropdown">
                         <a class="nav-link position-relative p-0" href="#" data-bs-toggle="dropdown">
-                            <i class="bi bi-bell fs-5"></i>
+                            <i class="bi bi-bell-fill fs-5"></i>
                             @if ($notificationsUnreadCount > 0)
-                                <span class="position-absolute notification-badge"
-                                    style="top: 4px; right: 4px;">
+                                <span class="position-absolute notification-badge" style="top: 4px; right: 4px;">
                                     {{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}
                                 </span>
                             @endif
@@ -92,26 +100,26 @@ NAVIGATION COMPONENT
                                         href="{{ url($notification->curl) }}">
                                         <div class="d-flex">
                                             <div class="notification-icon">
-                                                @if ($notification['type'] == 'agreement')
+                                                @if ($notification->ctype == 'agreement')
                                                     <i class="bi bi-file-text-fill"></i>
-                                                @elseif ($notification['type'] == 'incoming')
+                                                @elseif ($notification->ctype == 'incoming')
                                                     <i class="bi bi-truck-front-fill"></i>
-                                                @elseif ($notification['type'] == 'arrival')
+                                                @elseif ($notification->ctype == 'arrival')
                                                     <i class="bi bi-check-circle-fill"></i>
-                                                @elseif ($notification['type'] == 'created grn')
+                                                @elseif ($notification->ctype == 'created grn')
                                                     <i class="bi bi-file-earmark-check-fill"></i>
-                                                @elseif ($notification['type'] == 'created order request')
+                                                @elseif ($notification->ctype == 'created order request')
                                                     <i class="bi bi-cart-plus-fill"></i>
-                                                @elseif ($notification['type'] == 'created return request')
+                                                @elseif ($notification->ctype == 'created return request')
                                                     <i class="bi bi-arrow-left-circle-fill"></i>
                                                 @endif
                                             </div>
                                             <div class="notification-content">
                                                 <div class="notification-title-row">
-                                                    <div class="notification-title">{{ $notification['title'] }}</div>
-                                                    <div class="notification-time">5 minutes ago</div>
+                                                    <div class="notification-title">{{ $notification->ctitle }}</div>
+                                                    <div class="notification-time">{{ $notification->created_at->diffForHumans() }}</div>
                                                 </div>
-                                                <div class="notification-text">{{ $notification['text'] }}</div>
+                                                <div class="notification-text">{{ $notification->ctext }}</div>
                                             </div>
                                         </div>
                                     </a>
@@ -119,7 +127,7 @@ NAVIGATION COMPONENT
                             @empty
                                 <li>
                                     <div class="dropdown-item text-center py-4 text-muted">
-                                        <i class="bi bi-bell-slash fs-4 d-block mb-2"></i>
+                                        <i class="bi bi-bell-slash-fill fs-4 d-block mb-2"></i>
                                         No notifications available
                                     </div>
                                 </li>
@@ -157,8 +165,8 @@ NAVIGATION COMPONENT
 
                     {{-- User Dropdown (Right) --}}
                     <div class="dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center p-0 mobile-user-toggle" href="#"
-                            data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center p-0 mobile-user-toggle"
+                            href="#" data-bs-toggle="dropdown">
                             <div class="d-flex flex-column lh-1 text-end mobile-user-meta">
                                 <span class="fw-semibold small mobile-username">{{ Auth::user()->name }}</span>
                                 @if ($cnmcust)
@@ -166,7 +174,9 @@ NAVIGATION COMPONENT
                                 @endif
                                 @if ($customerRoleLabel)
                                     <small class="text-muted" style="font-size: 0.7rem;">
-                                        {{ $customerRoleLabel }}@if ($cnmwh) &mdash; {{ $cnmwh }}@endif
+                                        {{ $customerRoleLabel }}@if ($cnmwh)
+                                            &mdash; {{ $cnmwh }}
+                                        @endif
                                     </small>
                                 @endif
                             </div>
@@ -238,14 +248,24 @@ NAVIGATION COMPONENT
                     </div>
                 </li>
 
+                {{-- Feedback (Desktop Icon) --}}
+                <li class="nav-item me-2">
+                    <a class="nav-link position-relative js-feedback-link d-flex align-items-center"
+                        href="{{ route('chatrooms.index') }}" title="Feedback">
+
+                        <i class="bi bi-chat-left-text-fill fs-5"></i>
+
+                        {{-- Optional badge (JS can inject count here later) --}}
+                    </a>
+                </li>
+
                 {{-- Notifications (Desktop) --}}
                 <li class="nav-item dropdown me-2">
                     <a class="nav-link position-relative d-flex align-items-center" href="#"
-                        data-bs-toggle="dropdown">
-                        <i class="bi bi-bell fs-5"></i>
+                        title="Notifications" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell-fill fs-5"></i>
                         @if ($notificationsUnreadCount > 0)
-                            <span class="position-absolute notification-badge"
-                                style="top: 4px; right: 4px;">
+                            <span class="position-absolute notification-badge" style="top: 4px; right: 4px;">
                                 {{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}
                             </span>
                         @endif
@@ -283,7 +303,7 @@ NAVIGATION COMPONENT
                                             @elseif ($notification->ctype == 'created grn')
                                                 <i class="bi bi-file-earmark-check-fill"></i>
                                             @elseif ($notification->ctype == 'created order request')
-                                                    <i class="bi bi-cart-plus-fill"></i>
+                                                <i class="bi bi-cart-plus-fill"></i>
                                             @elseif ($notification->ctype == 'created return request')
                                                 <i class="bi bi-arrow-left-circle-fill"></i>
                                             @elseif ($notification->ctype == 'approved order request')
@@ -295,17 +315,15 @@ NAVIGATION COMPONENT
                                             @elseif ($notification->ctype == 'rejected return request')
                                                 <i class="bi bi-x-circle-fill"></i>
 
-                                            {{-- ORDER RESCHEDULE --}}
+                                                {{-- ORDER RESCHEDULE --}}
                                             @elseif ($notification->ctype == 'rescheduled order reschedule')
                                                 <i class="bi bi-calendar-event-fill"></i>
-
                                             @elseif ($notification->ctype == 'reserved order reschedule')
                                                 <i class="bi bi-calendar-check-fill"></i>
-
                                             @elseif ($notification->ctype == 'cancelled order reschedule')
                                                 <i class="bi bi-calendar-x-fill"></i>
 
-                                            {{-- RETURN RESCHEDULE --}}
+                                                {{-- RETURN RESCHEDULE --}}
                                             @elseif ($notification->ctype == 'rescheduled return reschedule')
                                                 <i class="bi bi-arrow-repeat"></i>
                                             @elseif ($notification->ctype == 'reserved return reschedule')
@@ -328,7 +346,7 @@ NAVIGATION COMPONENT
                         @empty
                             <li>
                                 <div class="dropdown-item text-center py-4 text-muted">
-                                    <i class="bi bi-bell-slash fs-4 d-block mb-2"></i>
+                                    <i class="bi bi-bell-slash-fill fs-4 d-block mb-2"></i>
                                     No notifications available
                                 </div>
                             </li>
@@ -338,7 +356,7 @@ NAVIGATION COMPONENT
 
                 {{-- Language Switcher (Desktop) --}}
                 <li class="nav-item dropdown me-2">
-                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#"
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" title="Languages"
                         data-bs-toggle="dropdown">
                         <i class="bi bi-globe2 me-1"></i>
                         @switch(app()->getLocale())
@@ -393,11 +411,13 @@ NAVIGATION COMPONENT
                             @if ($cnmcust)
                                 <small class="text-muted" style="font-size: 0.7rem;">{{ $cnmcust }}</small>
                             @endif
-                            @if ($customerRoleLabel)
+                            {{-- @if ($customerRoleLabel)
                                 <small class="text-muted" style="font-size: 0.7rem;">
-                                    {{ $customerRoleLabel }}@if ($cnmwh) &mdash; {{ $cnmwh }}@endif
+                                    {{ $customerRoleLabel }}@if ($cnmwh)
+                                        &mdash; {{ $cnmwh }}
+                                    @endif
                                 </small>
-                            @endif
+                            @endif --}}
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -463,14 +483,14 @@ NAVIGATION COMPONENT
                     data-keywords="add delivery note new delivery note">
                     <i class="bi bi-file-text"></i>{{ __('New Delivery Note') }}
                 </a></li>
-            <li><a class="dropdown-item" href="{{ route('delivery.goods_receipt_create') }}"
+            <li><a class="dropdown-item" href="{{ route('goodsreceipt.goods_receipt_create') }}"
                     data-keywords="add goods receipt new goods receipt">
                     <i class="bi bi-file-earmark-arrow-down"></i>{{ __('New Goods Receipt') }}
                 </a></li>
-            <li><a class="dropdown-item" href="{{ route('delivery.order_return_monitoring') }}"
+            <li><a class="dropdown-item" href="{{ route('orderreturn.order_return_monitoring') }}"
                     data-keywords="order return monitoring">
                     <i class="bi bi-cart-check"></i>{{ __('Order/Return Monitoring') }}</a></li>
-            <li><a class="dropdown-item" href="{{ route('delivery.request_email') }}"
+            <li><a class="dropdown-item" href="{{ route('orderreturn.request_email') }}"
                     data-keywords="order return email">
                     <i class="bi bi-envelope"></i>{{ __('Order/Return Email') }}</a></li>
         </ul>
@@ -494,27 +514,27 @@ NAVIGATION COMPONENT
         </ul>
     </li>
 
-        {{-- Report --}}
-        <li class="nav-item dropdown" data-roles="admin" data-tour="menu-report">
-            <a class="nav-link dropdown-toggle {{ $isReports ? 'active' : '' }}" href="#"
-                data-bs-toggle="dropdown">
-                <i class="bi bi-file-earmark-medical"></i>{{ __('Report') }}
-            </a>
-            <ul class="dropdown-menu">
-                @if (!$isWarehouseYs && !$isWarehousePic)
+    {{-- Report --}}
+    <li class="nav-item dropdown" data-roles="admin" data-tour="menu-report">
+        <a class="nav-link dropdown-toggle {{ $isReports ? 'active' : '' }}" href="#"
+            data-bs-toggle="dropdown">
+            <i class="bi bi-file-earmark-medical"></i>{{ __('Report') }}
+        </a>
+        <ul class="dropdown-menu">
+            @if (!$isWarehouseYs && !$isWarehousePic)
                 <li><a class="dropdown-item" href="{{ route('report.account_transaction') }}"
                         data-keywords="stock movement report">
                         <i class="bi bi-box-seam"></i>{{ __('Account Transaction') }}</a></li>
-                @endif
-                <li><a class="dropdown-item" href="{{ route('report.stock_movement') }}"
-                        data-keywords="stock movement report">
-                        <i class="bi bi-box-seam"></i>{{ __('Stock Movement') }}</a></li>
-                <li><a class="dropdown-item" href="{{ route('report.onhand_inventory') }}"
-                        data-keywords="on hand inventory report">
-                        <i class="bi bi-postcard"></i>{{ __('On-hand Inventory') }}</a></li>
-            </ul>
-        </li>
-    {{-- 
+            @endif
+            <li><a class="dropdown-item" href="{{ route('report.stock_movement') }}"
+                    data-keywords="stock movement report">
+                    <i class="bi bi-box-seam"></i>{{ __('Stock Movement') }}</a></li>
+            <li><a class="dropdown-item" href="{{ route('report.onhand_inventory') }}"
+                    data-keywords="on hand inventory report">
+                    <i class="bi bi-postcard"></i>{{ __('On-hand Inventory') }}</a></li>
+        </ul>
+    </li>
+    {{--
 
     --}}
 
@@ -543,26 +563,15 @@ NAVIGATION COMPONENT
         </ul>
     </li>
 
-    {{-- Feedback --}}
-    <li class="nav-item">
-        <a class="nav-link js-feedback-link position-relative {{ request()->routeIs('feedback.*') ? 'active' : '' }}"
-            href="{{ route('chatrooms.index') }}"
-            data-keywords="help center support faq glossary guide">
-
-            <i class="bi bi-chat-dots"></i>
-            {{ __('Feedback') }}
-
-            {{-- Badge will be injected by JS --}}
-        </a>
-    </li>
-
-    {{-- Help Center --}}
-    <li class="nav-item" data-tour="menu-help">
-        <a class="nav-link {{ request()->routeIs('help.*') ? 'active' : '' }}" href="{{ route('help.index') }}"
-            data-keywords="help center support faq glossary guide">
-            <i class="bi bi-question-circle"></i>{{ __('Help') }}
-        </a>
-    </li>
+    {{-- Pulse Monitoring --}}
+    @if ($isAdmin)
+        <li class="nav-item" data-roles="admin">
+            <a class="nav-link {{ request()->is('pulse*') ? 'active' : '' }}" href="/pulse"
+                data-keywords="pulse monitoring performance metrics server">
+                <i class="bi bi-activity"></i>{{ __('Pulse') }}
+            </a>
+        </li>
+    @endif
 
     <!-- Hidden search-only menu index (admin only) -->
     <div id="searchIndex" class="d-none">
@@ -609,7 +618,7 @@ NAVIGATION COMPONENT
             height: 18px;
             padding: 0 6px;
 
-            background: #ff3b30; 
+            background: #ff3b30;
             color: white;
 
             font-size: 11px;
@@ -618,9 +627,20 @@ NAVIGATION COMPONENT
             text-align: center;
 
             border-radius: 999px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 
             animation: badgePop 0.2s ease-out;
+        }
+
+        .feedback-alert::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: #ff3b30;
+            border-radius: 50%;
         }
 
         /* ── Notification Dropdown Container ── */
@@ -783,7 +803,7 @@ NAVIGATION COMPONENT
                 isMobile ? initMobileNav() : initDesktopNav();
 
                 // Check new chat
-                window.checkUnreadMessages(); 
+                window.checkUnreadMessages();
             });
 
             function setupFeedbackAlertListener() {
