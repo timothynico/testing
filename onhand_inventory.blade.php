@@ -47,9 +47,9 @@
                         <label for="filterWarehouse" class="form-label small fw-semibold">{{ __('Warehouse') }}</label>
                         <select class="form-select form-select-sm searchable-select" id="filterWarehouse" name="warehouse">
                             <option value="">{{ __('All Warehouses') }}</option>
-                            <option value="WH-A">WH-A (Main)</option>
-                            <option value="WH-B">WH-B (Secondary)</option>
-                            <option value="WH-C">WH-C (Transit)</option>
+                        @foreach ($arrdatawarehouse as $wh)
+                            <option value="{{ $wh->ckdwh }}">{{ $wh->cnmwh }}</option>
+                        @endforeach
                         </select>
                     </div>
 
@@ -125,12 +125,10 @@
                     <thead class="table-light">
                         <tr>
                             <th class="px-3 py-2 text-center" style="width: 5%;">{{ __('No') }}</th>
-                            <th class="px-3 py-2" style="width: 10%;">{{ __('ID Pallet') }}</th>
                             <th class="px-3 py-2" style="width: 12%;">{{ __('Usage') }}</th>
-                            <th class="px-3 py-2" style="width: 12%;">{{ __('Basic') }}</th>
+                            <th class="px-3 py-2" style="width: 14%;">{{ __('Basic') }}</th>
                             <th class="px-3 py-2 text-center" style="width: 14%;">{{ __('Size (mm)') }}</th>
-                            {{-- <th class="px-3 py-2 text-center" style="width: 8%;">{{ __('MD') }}</th>
-                            <th class="px-3 py-2 text-center" style="width: 8%;">{{ __('MR') }}</th> --}}
+                            <th class="px-3 py-2 text-center" style="width: 12%;">{{ __('Condition') }}</th>
                             <th class="px-3 py-2 text-center" style="width: 10%;">{{ __('Color') }}</th>
                             <th class="px-3 py-2 text-center" style="width: 12%;">{{ __('Quantity (Pcs)') }}</th>
                         </tr>
@@ -404,17 +402,14 @@
 
             $('#filterWarehouse').select2({
                 width: '100%',
-                placeholder: '{{ __('All Warehouses') }}'
+                placeholder: '{{ __('All Warehouses') }}',
+                allowClear: true
             });
 
             // Set default date to today
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('filterDate').value = today;
             currentFilters.date = today;
-
-            // Set default company
-            $('#filterCompany').val('PT Yanasurya Bhaktipersada').trigger('change');
-            currentFilters.company = 'PT Yanasurya Bhaktipersada';
 
             // Filter handlers
             document.getElementById('filterDate').addEventListener('change', function() {
@@ -424,7 +419,7 @@
 
             $('#filterCompany').on('change', function() {
                 currentFilters.company = this.value;
-                filterAndRender();
+                getData();
             });
 
             $('#filterWarehouse').on('change', function() {
@@ -503,7 +498,8 @@
                             item.usage.toLowerCase().includes(searchLower) ||
                             item.basic.toLowerCase().includes(searchLower) ||
                             item.size.toLowerCase().includes(searchLower) ||
-                            item.color.toLowerCase().includes(searchLower)
+                            item.color.toLowerCase().includes(searchLower) ||
+                            item.condition.toLowerCase().includes(searchLower)
                         );
                     }
 
@@ -551,12 +547,12 @@
                     rows += `
                         <tr>
                             <td class="px-3 py-2 text-center">${index + 1}</td>
-                            <td class="px-3 py-2">
-                                <span class="fw-semibold text-success">${item.pallet_id}</span>
-                            </td>
                             <td class="px-3 py-2"><span class="badge ${usageBadgeClass}">${item.usage.replaceAll('_', ' ')}</span></td>
                             <td class="px-3 py-2">${item.basic}</td>
                             <td class="px-3 py-2 text-center"><span class="badge bg-secondary">${item.size}</span></td>
+                            <td class="px-3 py-2 text-center">
+                                <span class="badge ${item.condition === 'Good' ? 'bg-success' : 'bg-danger'}">${item.condition}</span>
+                            </td>
                             <td class="px-3 py-2 text-center">${item.color}</td>
                             <td class="px-3 py-2 text-center">
                                 <span class="fw-semibold">${item.quantity.toLocaleString()}</span>
@@ -635,16 +631,16 @@
                 let tableRows = '';
                 filteredData.forEach((item, index) => {
                     tableRows += `
-                        <tr>
-                            <td style="text-align: center;">${index + 1}</td>
-                            <td>${item.pallet_id}</td>
-                            <td>${item.usage}</td>
-                            <td>${item.basic}</td>
-                            <td style="text-align: center;">${item.size}</td>
-                            <td style="text-align: center;">${item.color}</td>
-                            <td style="text-align: center;">${item.quantity.toLocaleString()}</td>
-                        </tr>
-                    `;
+    <tr>
+        <td style="text-align: center;">${index + 1}</td>
+        <td>${item.usage}</td>
+        <td>${item.basic}</td>
+        <td style="text-align: center;">${item.size}</td>
+        <td style="text-align: center;">${item.condition}</td>
+        <td style="text-align: center;">${item.color}</td>
+        <td style="text-align: center;">${item.quantity.toLocaleString()}</td>
+    </tr>
+`;
                 });
 
                 printContainer.innerHTML = `
@@ -673,10 +669,10 @@
                             <thead>
                                 <tr>
                                     <th style="width: 5%;">No</th>
-                                    <th style="width: 12%;">ID Pallet</th>
-                                    <th style="width: 13%;">Usage</th>
-                                    <th style="width: 12%;">Basic</th>
+                                    <th style="width: 14%;">Usage</th>
+                                    <th style="width: 14%;">Basic</th>
                                     <th style="width: 14%;">Size (mm)</th>
+                                    <th style="width: 12%;">Condition</th>
                                     <th style="width: 10%;">Color</th>
                                     <th style="width: 13%;">Quantity (Pcs)</th>
                                 </tr>
@@ -686,7 +682,7 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="8" style="text-align: right; font-weight: bold;">TOTAL QUANTITY:</td>
+                                    <td colspan="6" style="text-align: right; font-weight: bold;">TOTAL QUANTITY:</td>
                                     <td style="text-align: center;">${totalQty.toLocaleString()}</td>
                                 </tr>
                             </tfoot>
@@ -716,20 +712,12 @@
                     ['As Of Date:', currentFilters.date],
                     ['Generated:', new Date().toLocaleString()],
                     [],
-                    ['No', 'ID Pallet', 'Usage', 'Basic', 'Size (mm)', 'Color',
-                        'Quantity (Pcs)'
-                    ]
+                    ['No', 'Usage', 'Basic', 'Size (mm)', 'Condition', 'Color', 'Quantity (Pcs)']
                 ];
 
                 exportData.forEach((item, index) => {
-                    worksheetData.push([
-                        index + 1,
-                        item.pallet_id,
-                        item.usage,
-                        item.basic,
-                        item.size,
-                        item.color,
-                        item.quantity
+                    worksheetData.push([index + 1, item.usage, item.basic, item.size, item
+                        .condition, item.color, item.quantity
                     ]);
                 });
 
@@ -791,10 +779,10 @@
 
                 const tableData = exportData.map((item, index) => [
                     index + 1,
-                    item.pallet_id,
                     item.usage,
                     item.basic,
                     item.size,
+                    item.condition,
                     item.color,
                     item.quantity
                 ]);
@@ -804,7 +792,7 @@
                 doc.autoTable({
                     startY: 40,
                     head: [
-                        ['No', 'ID Pallet', 'Usage', 'Basic', 'Size (mm)', 'Color',
+                        ['No', 'Usage', 'Basic', 'Size (mm)', 'Condition', 'Color',
                             'Quantity (Pcs)'
                         ]
                     ],
@@ -842,11 +830,11 @@
 
                 let exportData = getFilteredData();
 
-                let csv = 'No,ID Pallet,Usage,Basic,Size (mm),Color,Quantity (Pcs)\n';
+                let csv = 'No,Usage,Basic,Size (mm),Condition,Color,Quantity (Pcs)\n';
 
                 exportData.forEach((item, index) => {
                     csv +=
-                        `${index + 1},"${item.pallet_id}","${item.usage}","${item.basic}","${item.size}","${item.color}",${item.quantity}\n`;
+                        `${index + 1},"${item.usage}","${item.basic}","${item.size}","${item.condition}","${item.color}",${item.quantity}\n`;
                 });
 
                 const totalQty = exportData.reduce((sum, item) => sum + item.quantity, 0);
@@ -878,7 +866,8 @@
                             item.usage.toLowerCase().includes(searchLower) ||
                             item.basic.toLowerCase().includes(searchLower) ||
                             item.size.toLowerCase().includes(searchLower) ||
-                            item.color.toLowerCase().includes(searchLower)
+                            item.color.toLowerCase().includes(searchLower) ||
+                            item.condition.toLowerCase().includes(searchLower)
                         );
                     }
 
@@ -887,52 +876,42 @@
             }
 
             async function getData() {
+                if (!currentFilters.company || !currentFilters.date) return;
+                
                 const bodyTableStock = document.getElementById('reportTableBody');
-                // const selectElement = type === 'from' ? fromAddressSelect : toAddressSelect;
-                bodyTableStock.innerHTML = '<tr><td>Loading...</td></tr>';
-                let ckdcust = @json((Auth::user()->isAdmin() || Auth::user()->isSuperAdmin()) ? null : Auth::user()->ckdcust);
+                bodyTableStock.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+                
+                // Kosongkan dulu sebelum fetch baru
+                inventoryData.length = 0;
+
+                console.log(currentFilters.company);
+                
                 try {
-                    const response = await fetch(`/api/inventory/getData/` + (ckdcust ?? ''));
+                    const response = await fetch(`/api/inventory/getData/` + currentFilters.company);
                     const data = await response.json();
-                    let strhtml = "";
                     let idx = 1;
                     data.forEach(inventory => {
-
                         inventoryData.push({
                             id: idx,
                             pallet_id: inventory.ckdbrg,
+                            condition: inventory.ckdbrg.startsWith('01') ? 'Good' : inventory
+                                .ckdbrg.startsWith('02') ? 'Reject' : '-',
                             usage: inventory.usage,
                             basic: inventory.cbasic,
-                            size: inventory.npanjang + " x " + inventory.nlebar + " x " + inventory.ntinggi,
+                            size: inventory.npanjang + " x " + inventory.nlebar + " x " +
+                                inventory.ntinggi,
                             color: inventory.cwarna,
                             quantity: inventory.nqty,
                             warehouse: inventory.ckdwh,
                             company: inventory.ctempat,
                             date: inventory.dtgl
                         });
-                        // inventoryData.push({
-                        //     id: idx,
-                        //     pallet_id: inventory.ckdbrg,
-                        //     usage: "",
-                        //     basic: "",
-                        //     size: ""+" x "+""+" x "+"",
-                        //     md: "",
-                        //     mr: "",
-                        //     color: "",
-                        //     quantity: inventory.nqty,
-                        //     warehouse: inventory.ckdwh,
-                        //     company: inventory.ctempat,
-                        //     date: inventory.dtgl
-                        // });
                         idx++;
-
                     });
 
-
                     filterAndRender();
-
                 } catch (error) {
-
+                    console.error(error);
                 }
             }
 
