@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png" />
@@ -31,11 +31,11 @@
 
     {{-- Select2 --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+        rel="stylesheet">
 
     {{-- Driver Js --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" />
-
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
     <style>
         * {
@@ -92,43 +92,11 @@
             color: #FFFFFF;
         }
 
-        /* Select2 Styling - Fixed */
-        .select2-container--default .select2-selection--single {
-            height: 31px;
-            display: flex;
-            align-items: center;
-            border: 1px solid #ced4da;
-        }
 
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            color: #212529;
-            line-height: 28px;
-            padding-left: 8px;
-            padding-right: 20px;
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__placeholder {
-            color: #212529 !important;
-            line-height: 28px;
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 31px;
-            top: 0;
-            right: 1px;
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__arrow b {
-            margin-top: -2px;
-        }
-
-        /* Remove any conflicting rules */
-        .select2-selection__rendered {
-            line-height: 28px !important;
-        }
-
-        .select2-container--default.select2-container--focus .select2-selection--single {
-            border-color: #86FEB7;
+        /* Select 2 Green Accent */
+        .select2-container--bootstrap-5 .select2-selection:focus,
+        .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+            border-color: #198754;
             box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
         }
 
@@ -588,6 +556,23 @@
             box-shadow: none;
         }
 
+        /* Page Header Action Buttons */
+        .btn-header-action {
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.25rem 0.75rem;
+            line-height: 1.5;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .btn-header-action i {
+            font-size: 0.85rem;
+            line-height: 1;
+        }
+
         /* Green toggle switch */
         .form-check-input:checked {
             background-color: #198754;
@@ -605,12 +590,6 @@
             border: 1px solid #ced4da;
         }
 
-        .form-select-sm,
-        .form-control-sm {
-            font-size: 0.875rem;
-            padding: 0.375rem 0.5rem;
-        }
-
         .form-label.small {
             font-size: 0.8125rem;
             margin-bottom: 0.25rem;
@@ -618,16 +597,6 @@
 
         .form-control:focus,
         .form-select:focus {
-            border-color: #86FEB7;
-            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
-        }
-
-        /* Input Styling */
-        .select2-container--default .select2-selection--single {
-            border: 1px solid #ced4da;
-        }
-
-        .select2-container--default.select2-container--focus .select2-selection--single {
             border-color: #86FEB7;
             box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
         }
@@ -879,7 +848,7 @@
             height: 18px;
             padding: 0 6px;
 
-            background: #ff3b30; 
+            background: #ff3b30;
             color: white;
 
             font-size: 11px;
@@ -888,7 +857,7 @@
             text-align: center;
 
             border-radius: 999px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 
             animation: badgePop 0.2s ease-out;
         }
@@ -898,6 +867,7 @@
                 transform: scale(0.8);
                 opacity: 0;
             }
+
             to {
                 transform: scale(1);
                 opacity: 1;
@@ -920,12 +890,16 @@
                         @yield('header-left')
 
                         <div class="d-flex align-items-center gap-3">
-                            {{-- ⭐ ADD THIS TOUR BUTTON --}}
-                            <button type="button" id="startTourBtn"
-                                class="btn btn-sm btn-success d-flex align-items-center gap-1"
-                                style="font-size: 0.8rem; padding: 0.25rem 0.75rem;">
-                                <i class="bi bi-magic" style="font-size: 0.9rem;"></i>
+
+                            <button type="button" id="startTourBtn" class="btn btn-sm btn-success btn-header-action">
+                                <i class="bi bi-magic"></i>
                                 <span class="d-none d-md-inline">{{ __('Take Tour') }}</span>
+                            </button>
+
+                            <button type="button" class="btn btn-sm btn-success btn-header-action"
+                                onclick="window.location.href='{{ route('help.index') }}'" title="Help Center">
+                                <i class="bi bi-question-octagon"></i>
+                                <span class="d-none d-md-inline">{{ __('Help') }}</span>
                             </button>
 
                             <div class="text-end lh-sm flex-shrink-0">
@@ -974,7 +948,7 @@
                     </div>
                 @endif
                 @if (isset($slot))
-                    {{ $slot }}        {{-- untuk Livewire full page --}}
+                    {{ $slot }} {{-- untuk Livewire full page --}}
                 @else
                     @yield('content') {{-- untuk Blade biasa --}}
                 @endif
@@ -998,7 +972,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- jQuery (must be before Select2) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
     <!-- Select2 -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -1008,19 +982,28 @@
 
     <!-- Global UI Initializer -->
     <script>
-        $(document).ready(function() {
-            $('.searchable-select').each(function() {
-                // Skip province and city - they have custom logic
-                if ($(this).attr('id') === 'provinsi' || $(this).attr('id') === 'kota') {
-                    return; // skip this iteration
-                }
+        window.initSelect2 = function(context = document) {
+            $(context).find('.select2-bs5').each(function() {
 
-                if (!$(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2({
-                        width: '100%'
-                    });
-                }
+                // Prevent double initialization
+                if ($(this).hasClass('select2-hidden-accessible')) return;
+
+                const dropdownParentSelector = $(this).data('dropdown-parent');
+
+                $(this).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $(this).data('placeholder') || '',
+                    allowClear: $(this).data('allow-clear') === true || $(this).data('allow-clear') ===
+                        'true',
+                    dropdownParent: dropdownParentSelector ?
+                        $(this).closest(dropdownParentSelector) : undefined
+                });
             });
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initSelect2();
         });
     </script>
 
@@ -1220,8 +1203,8 @@
 
     {{-- Check Unread Messages --}}
     <script>
-        window.checkUnreadMessages = function () {
-            fetch('{{ route("chatrooms.unread") }}')
+        window.checkUnreadMessages = function() {
+            fetch('{{ route('chatrooms.unread') }}')
                 .then(res => res.json())
                 .then(data => {
                     document.querySelectorAll('.js-feedback-link').forEach(el => {
