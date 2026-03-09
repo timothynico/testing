@@ -19,7 +19,7 @@
             <form id="filterForm">
                 <div class="row g-3 align-items-end">
                     <!-- Date Filter -->
-                    <div class="col-2 col-md-2">
+                    <div class="col-4 col-md-2">
                         <label for="filterDate" class="form-label small fw-semibold">
                             {{ __('As Of Date') }} <span class="text-danger">*</span>
                         </label>
@@ -27,7 +27,7 @@
                     </div>
 
                     <!-- Company Filter -->
-                    <div class="col-3 col-md-3" id="companyFilterWrap">
+                    <div class="col-4 col-md-3" id="companyFilterWrap">
                         <label for="filterCompany" class="form-label small fw-semibold">
                             {{ __('Company') }} <span class="text-danger">*</span>
                         </label>
@@ -43,7 +43,7 @@
                     </div>
 
                     <!-- Warehouse Filter -->
-                    <div class="col-2 col-md-2" id="warehouseFilterWrap">
+                    <div class="col-4 col-md-2" id="warehouseFilterWrap">
                         <label for="filterWarehouse" class="form-label small fw-semibold">{{ __('Warehouse') }}</label>
                         <select class="form-select form-select-sm searchable-select" id="filterWarehouse" name="warehouse">
                             <option value="">{{ __('All Warehouses') }}</option>
@@ -54,7 +54,7 @@
                     </div>
 
                     <!-- Search -->
-                    <div class="col-4 col-md-4">
+                    <div class="col-10 col-md-4">
                         <label for="searchInput" class="form-label small fw-semibold">{{ __('Search') }}</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">
@@ -69,7 +69,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="col-1 col-md-1 d-flex gap-1">
+                    <div class="col-2 col-md-1 d-flex gap-1">
                         <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="resetFilters"
                             title="{{ __('Reset Filters') }}">
                             <i class="bi bi-arrow-counterclockwise"></i>
