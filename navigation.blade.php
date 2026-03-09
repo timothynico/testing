@@ -646,6 +646,7 @@ NAVIGATION COMPONENT
         /* ── Notification Dropdown Container ── */
         .notification-dropdown {
             width: 380px;
+            max-width: calc(100vw - 1rem);
             max-height: 480px;
             overflow-y: auto;
             padding: 0;
@@ -747,9 +748,9 @@ NAVIGATION COMPONENT
         }
 
         .notification-title-row {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
             gap: 0.5rem;
             margin-bottom: 0.25rem;
         }
@@ -759,8 +760,10 @@ NAVIGATION COMPONENT
             flex: 1;
             min-width: 0;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
         }
 
         .notification-time {
@@ -773,14 +776,25 @@ NAVIGATION COMPONENT
         .notification-text {
             font-size: 0.8125rem;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.35;
         }
 
         /* ── Mobile ── */
         @media (max-width: 991.98px) {
             .notification-dropdown {
-                width: 320px;
+                width: min(320px, calc(100vw - 1rem));
+            }
+
+            .notification-title-row {
+                grid-template-columns: 1fr;
+                gap: 0.25rem;
+            }
+
+            .notification-time {
+                white-space: normal;
             }
         }
     </style>
