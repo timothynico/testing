@@ -20,7 +20,7 @@
             <form id="filterForm">
                 <div class="row g-3 align-items-end">
                     <!-- Company Filter -->
-                    <div class="col-3 col-md-2">
+                    <div class="col-4 col-md-2">
                         <label for="filterCompany" class="form-label small fw-semibold">
                             {{ __('Company') }} <span class="text-danger">*</span>
                         </label>
@@ -36,7 +36,7 @@
                     </div>
 
                     <!-- Warehouse Filter -->
-                    <div class="col-2 col-md-2">
+                    <div class="col-4 col-md-2">
                         <label for="filterWarehouse" class="form-label small fw-semibold">{{ __('Warehouse') }}</label>
                         <select class="form-select form-select-sm searchable-select" id="filterWarehouse" name="warehouse">
                             <option value="">{{ __('All Warehouses') }}</option>
@@ -44,7 +44,7 @@
                         </select>
                     </div>
                     <!-- Month Filter -->
-                    <div class="col-2 col-md-1" id="stockMovementPeriod">
+                    <div class="col-4 col-md-1" id="stockMovementPeriod">
                         <label for="filterMonth" class="form-label small fw-semibold">{{ __('Month') }}</label>
                         <select class="form-select form-select-sm" id="filterMonth" name="month">
                             <option value="">{{ __('All Months') }}</option>
@@ -63,8 +63,10 @@
                         </select>
                     </div>
 
+                    <div class="w-100 d-md-none"></div>
+
                     <!-- Year Filter -->
-                    <div class="col-2 col-md-1">
+                    <div class="col-4 col-md-1">
                         <label for="filterYear" class="form-label small fw-semibold">{{ __('Year') }}</label>
                         <select class="form-select form-select-sm" id="filterYear" name="year">
                             <option value="">{{ __('All Years') }}</option>
@@ -72,7 +74,7 @@
                     </div>
 
                     <!-- Product Filter -->
-                    <div class="col-2 col-md-2">
+                    <div class="col-8 col-md-2">
                         <label for="filterProduct" class="form-label small fw-semibold">{{ __('Product') }}</label>
                         <select class="form-select form-select-sm searchable-select" id="filterProduct" name="product">
                             <option value="">{{ __('All Products') }}</option>
@@ -85,8 +87,10 @@
                         </select>
                     </div>
 
+                    <div class="w-100 d-md-none"></div>
+
                     <!-- Search -->
-                    <div class="col-3 col-md-3">
+                    <div class="col-9 col-md-3">
                         <label for="searchInput" class="form-label small fw-semibold">{{ __('Search') }}</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">
@@ -101,7 +105,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="col-1 col-md-1 d-flex gap-1">
+                    <div class="col-3 col-md-1 d-flex gap-1">
                         <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="resetFilters"
                             title="{{ __('Reset Filters') }}">
                             <i class="bi bi-arrow-counterclockwise"></i>
