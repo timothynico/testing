@@ -5,12 +5,12 @@
 @section('header-left')
     <div class="d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="h5 mb-0 text-dark fw-semibold">{{__('New Delivery Note')}}</h2>
+            <h2 class="h5 mb-0 text-dark fw-semibold">{{ __('New Delivery Note') }}</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0 small">
-                    <li class="breadcrumb-item"><a href="{{ route('delivery.index') }}">{{__('Delivery Monitoring')}}</a>
+                    <li class="breadcrumb-item"><a href="{{ route('delivery.index') }}">{{ __('Delivery Monitoring') }}</a>
                     </li>
-                    <li class="breadcrumb-item active">{{__('Create')}}</li>
+                    <li class="breadcrumb-item active">{{ __('Create') }}</li>
                 </ol>
             </nav>
         </div>
@@ -29,9 +29,7 @@
     <form id="deliveryNoteForm" method="POST" action="{{ route('delivery.store') }}"
         @if (!$canCreateDelivery) class="d-none" @endif>
         @csrf
-        @if (!empty($palletRequest))
-            <input type="hidden" name="pallet_request_id" value="{{ $palletRequest->nid }}">
-        @endif
+        <input type="hidden" name="pallet_request_id" id="palletRequestId" value="{{ $palletRequest->nid ?? '' }}">
 
         <!-- Delivery Information -->
         <div class="card mb-3">
@@ -42,7 +40,8 @@
                 <div class="row g-2">
                     <!-- Row 1: Delivery Note Number, Delivery Date, Delivery Notes -->
                     <div class="col-3 col-md-3">
-                        <label for="deliveryNoteNumber" class="form-label fw-semibold small">{{__('Delivery Note Number')}} <span
+                        <label for="deliveryNoteNumber"
+                            class="form-label fw-semibold small">{{ __('Delivery Note Number') }} <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="deliveryNoteNumber"
                             name="delivery_note_number" value="{{ $nosj }}" placeholder="SJ/2RD108/31" required
@@ -50,34 +49,49 @@
                     </div>
 
                     <div class="col-3 col-md-3">
-                        <label for="deliveryDate" class="form-label fw-semibold small">{{__('Delivery Date')}} <span
+                        <label for="deliveryDate" class="form-label fw-semibold small">{{ __('Delivery Date') }} <span
                                 class="text-danger">*</span></label>
                         <input type="date" class="form-control form-control-sm" id="deliveryDate" name="delivery_date"
                             required>
                     </div>
 
-                    <div class="col-6 col-md-6">
-                        <label for="deliveryNotes" class="form-label fw-semibold small">{{__('Delivery Notes')}}</label>
+                    @if (!empty($useOrderRequestFlow))
+                        <div class="col-3 col-md-3">
+                            <label for="orderRequestSelect" class="form-label fw-semibold small">{{ __('Order Request') }}
+                                <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="orderRequestSelect" required>
+                                <option value="">{{ __('Select order request') }}</option>
+                                @foreach ($orderRequestOptions as $orderRequest)
+                                    <option value="{{ $orderRequest['id'] }}">
+                                        {{ $orderRequest['label'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <div class="{{ !empty($useOrderRequestFlow) ? 'col-3 col-md-3' : 'col-6 col-md-6' }}">
+                        <label for="deliveryNotes" class="form-label fw-semibold small">{{ __('Delivery Notes') }}</label>
                         <textarea class="form-control form-control-sm" id="deliveryNotes" name="delivery_notes" rows="1"
-                            placeholder="{{__('Enter delivery notes')}}"></textarea>
+                            placeholder="{{ __('Enter delivery notes') }}"></textarea>
                     </div>
 
                     <!-- Row 2: From Entity (Customer or Company), From Address -->
                     <div class="col-6 col-md-3">
-                        <label for="fromEntity" class="form-label fw-semibold small">{{__('Sender')}} <span
+                        <label for="fromEntity" class="form-label fw-semibold small">{{ __('Sender') }} <span
                                 class="text-danger">*</span></label>
                         {{-- Admin: enabled dropdown with all options (companies + customers) --}}
                         {{-- Customer User: disabled dropdown, locked to their customer --}}
                         {{-- Company Warehouse User: disabled dropdown, locked to their company --}}
                         <select class="form-select form-select-sm" id="fromEntity" name="from_entity_id" required
-                            @if (!$isAdmin) disabled @endif>
-                            <option value="">{{__('Select sender')}}</option>
+                            @if (!$isAdmin || !empty($useOrderRequestFlow)) disabled @endif>
+                            <option value="">{{ __('Select sender') }}</option>
 
                             {{-- Companies: Show for Admin (all) or Company Warehouse User (their company, selected) --}}
                             @if ($isAdmin || $isCompanyWarehouse)
                                 @if (isset($fromCompanies) && count($fromCompanies) > 0)
                                     @if ($isAdmin)
-                                        <optgroup label="{{__('Companies')}}">
+                                        <optgroup label="{{ __('Companies') }}">
                                     @endif
                                     @foreach ($fromCompanies as $company)
                                         <option value="company_{{ $company['ckdcomp'] }}" data-type="company"
@@ -97,7 +111,7 @@
                             @if ($isAdmin || $isCustomerUser)
                                 @if (isset($fromCustomers) && count($fromCustomers) > 0)
                                     @if ($isAdmin)
-                                        <optgroup label="{{__('Customers')}}">
+                                        <optgroup label="{{ __('Customers') }}">
                                     @endif
                                     @foreach ($fromCustomers as $customer)
                                         <option value="customer_{{ $customer['ckdcust'] }}" data-type="customer"
@@ -123,11 +137,12 @@
                     </div>
 
                     <div class="col-6 col-md-3">
-                        <label for="fromAddressSelect" class="form-label fw-semibold small">{{__('Sender Address')}} <span
-                                class="text-danger">*</span></label>
+                        <label for="fromAddressSelect" class="form-label fw-semibold small">{{ __('Sender Address') }}
+                            <span class="text-danger">*</span></label>
                         <select class="form-select form-select-sm" id="fromAddressSelect" required
-                            @if (($isWarehousePic || $isCompanyWarehouse) && count($userCustomerAddresses) === 1) disabled @endif>
-                            <option value="">{{__('Select address')}}</option>
+                            @if (($isWarehousePic || $isCompanyWarehouse) && count($userCustomerAddresses) === 1) disabled @endif
+                            @if (!empty($useOrderRequestFlow)) disabled @endif>
+                            <option value="">{{ __('Select address') }}</option>
                             @if (!$isAdmin && count($userCustomerAddresses) > 0)
                                 @foreach ($userCustomerAddresses as $addr)
                                     <option value="{{ $addr['ckdwh'] }}" data-city="{{ $addr['city'] }}"
@@ -145,10 +160,11 @@
 
                     <!-- Row 3: To Customer Network, To Address -->
                     <div class="col-6 col-md-3">
-                        <label for="toCustomerNetwork" class="form-label fw-semibold small">{{__('Receiver')}}
+                        <label for="toCustomerNetwork" class="form-label fw-semibold small">{{ __('Receiver') }}
                             <span class="text-danger">*</span></label>
-                        <select class="form-select form-select-sm" id="toCustomerNetwork" name="to_customer_id" required>
-                            <option value="">{{__('Select sender first')}}</option>
+                        <select class="form-select form-select-sm" id="toCustomerNetwork" name="to_customer_id" required
+                            @if (!empty($useOrderRequestFlow)) disabled @endif>
+                            <option value="">{{ __('Select sender first') }}</option>
                         </select>
                         <!-- Hidden fields for to entity -->
                         <input type="hidden" id="toType" name="to_type" value="customer">
@@ -159,10 +175,11 @@
                     </div>
 
                     <div class="col-6 col-md-3">
-                        <label for="toAddressSelect" class="form-label fw-semibold small">{{__('Receiver Address')}} <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select form-select-sm" id="toAddressSelect" required>
-                            <option value="">{{__('Select receiver first')}}</option>
+                        <label for="toAddressSelect" class="form-label fw-semibold small">{{ __('Receiver Address') }}
+                            <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="toAddressSelect" required
+                            @if (!empty($useOrderRequestFlow)) disabled @endif>
+                            <option value="">{{ __('Select receiver first') }}</option>
                         </select>
                         <input type="hidden" id="toAddress" name="to_address">
                         <input type="hidden" id="toCity" name="to_city">
@@ -178,11 +195,11 @@
                 <div class="row g-2 mb-2">
                     <!-- Row with Logistics and Export in same area -->
                     <div class="col-3 col-md-3">
-                        <label for="logisticsCompany" class="form-label fw-semibold small">{{__('Logistic Company')}}
+                        <label for="logisticsCompany" class="form-label fw-semibold small">{{ __('Logistic Company') }}
                             <span class="text-danger">*</span></label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control form-control-sm" id="logisticsCompanyInput"
-                                name="logistics_company" placeholder="{{__('Type or select')}}" required>
+                                name="logistics_company" placeholder="{{ __('Type or select') }}" required>
                             <button class="btn btn-brand dropdown-toggle" type="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="bi bi-chevron-down"></i>
@@ -204,7 +221,7 @@
 
                     <!-- Driver's Name with dropdown/manual input -->
                     <div class="col-2 col-md-2">
-                        <label for="driverName" class="form-label fw-semibold small">{{__("Driver's Name")}} <span
+                        <label for="driverName" class="form-label fw-semibold small">{{ __("Driver's Name") }} <span
                                 class="text-danger">*</span></label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control form-control-sm" id="driverNameInput"
@@ -220,7 +237,7 @@
                     </div>
 
                     <div class="col-2 col-md-2">
-                        <label for="driverPhone" class="form-label fw-semibold small">{{__("Driver's Phone")}} <span
+                        <label for="driverPhone" class="form-label fw-semibold small">{{ __("Driver's Phone") }} <span
                                 class="text-danger">*</span></label>
                         <div class="input-group input-group-sm">
                             <select class="form-select" id="countryCode" name="country_code"
@@ -238,28 +255,28 @@
                     </div>
 
                     <div class="col-2 col-md-2">
-                        <label for="vehicleType" class="form-label fw-semibold small">{{__('Vehicle Type')}} <span
+                        <label for="vehicleType" class="form-label fw-semibold small">{{ __('Vehicle Type') }} <span
                                 class="text-danger">*</span></label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control form-control-sm" id="vehicleTypeInput"
-                                name="vehicle_type" placeholder="{{__('Type or select')}}" required>
+                                name="vehicle_type" placeholder="{{ __('Type or select') }}" required>
                             <button class="btn btn-brand dropdown-toggle" type="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="bi bi-chevron-down"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" id="vehicleTypeDropdown">
-                                <li><a class="dropdown-item" href="#" data-value="Motorcycle">{{__('Motorcycle')}}</a></li>
-                                <li><a class="dropdown-item" href="#" data-value="Car">{{__('Car')}}</a></li>
-                                <li><a class="dropdown-item" href="#" data-value="Pickup Truck">{{__('Pickup Truck')}}</a>
-                                </li>
-                                <li><a class="dropdown-item" href="#" data-value="Van">{{__('Van')}}</a></li>
-                                <li><a class="dropdown-item" href="#" data-value="Truck">{{__('Truck')}}</a></li>
+                                @foreach ($vehicles as $vehicle)
+                                    <li><a class="dropdown-item" href="#"
+                                            data-value="{{ $vehicle->cnmkendaraan }}">{{ $vehicle->cnmkendaraan }}</a>
+                                    </li>
+                                @endforeach
                             </ul>
                         </div>
                     </div>
 
                     <div class="col-3 col-md-3">
-                        <label for="vehicleLicense" class="form-label fw-semibold small">{{__('Vehicle License Number')}} <span
+                        <label for="vehicleLicense"
+                            class="form-label fw-semibold small">{{ __('Vehicle License Number') }} <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="vehicleLicense"
                             name="vehicle_license_number" placeholder="DK 1234 AA" required>
@@ -268,25 +285,25 @@
                 <div class="row g-2 align-items-end">
                     {{-- Container Toggle --}}
                     <div class="col-3 col-md-3">
-                        <label class="form-label fw-semibold small mb-1">{{__('Is this a container shipment?')}}</label>
+                        <label class="form-label fw-semibold small mb-1">{{ __('Is this a container shipment?') }}</label>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="isExport" name="is_export">
                             <label class="form-check-label small" for="isExport">
-                                {{__('Yes')}}
+                                {{ __('Yes') }}
                             </label>
                         </div>
                     </div>
 
                     <!-- Container Number -->
                     <div class="col-3 d-none" id="containerNumberGroup">
-                        <label class="form-label fw-semibold small mb-1">{{__('Container No.')}}</label>
+                        <label class="form-label fw-semibold small mb-1">{{ __('Container No.') }}</label>
                         <input type="text" class="form-control form-control-sm" id="containerNumber"
                             name="container_number" placeholder="ABCD1234567">
                     </div>
 
                     <!-- Seal Number -->
                     <div class="col-3 d-none" id="sealNumberGroup">
-                        <label class="form-label fw-semibold small mb-1">{{__('Seal No.')}}</label>
+                        <label class="form-label fw-semibold small mb-1">{{ __('Seal No.') }}</label>
                         <input type="text" class="form-control form-control-sm" id="sealNumber" name="seal_number"
                             placeholder="SL123456">
                     </div>
@@ -298,11 +315,11 @@
         <div class="card mb-3">
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">
-                    <i class="bi bi-box-seam me-2"></i>{{__('Delivery Items')}}
+                    <i class="bi bi-box-seam me-2"></i>{{ __('Delivery Items') }}
                 </span>
                 <button type="button" id="addItemBtn" class="header-action d-flex align-items-center gap-1">
                     <i class="bi bi-plus"></i>
-                    {{__('Add Item')}}
+                    {{ __('Add Item') }}
                 </button>
             </div>
 
@@ -311,8 +328,8 @@
                     <table class="table table-sm align-middle mb-0" id="deliveryItemsTable">
                         <thead class="table-light">
                             <tr class="small text-muted">
-                                <th style="width:60%">{{__('Pallet Type')}} *</th>
-                                <th style="width:30%">{{__('Quantity')}} *</th>
+                                <th style="width:60%">{{ __('Pallet Type') }} *</th>
+                                <th style="width:30%">{{ __('Quantity') }} *</th>
                                 <th style="width:10%" class="text-center"></th>
                             </tr>
                         </thead>
@@ -323,8 +340,10 @@
                 </div>
 
                 <div id="noItemsPlaceholder" class="text-center py-2 text-muted small">
-                    {{__('No items added yet')}}. {{__('Click')}} <strong>+ {{__('Add Item')}}</strong> {{__('to begin')}}.
+                    {{ __('No items added yet') }}. {{ __('Click') }} <strong>+ {{ __('Add Item') }}</strong>
+                    {{ __('to begin') }}.
                 </div>
+                <div id="orderRequestWarning" class="text-danger small mt-2 d-none"></div>
             </div>
         </div>
 
@@ -334,20 +353,27 @@
                 <div class="d-flex gap-2 justify-content-end align-items-center">
                     @if (!$isCreatedFromRequest)
                         <button type="button" class="btn btn-sm btn-danger" id="resetBtn">
-                            <i class="bi bi-arrow-clockwise me-1"></i>{{__('Reset')}}
+                            <i class="bi bi-arrow-clockwise me-1"></i>{{ __('Reset') }}
                         </button>
                     @endif
-                    <button type="submit" class="btn btn-sm btn-brand" name="action" value="save">
-                        <i class="bi bi-check-circle me-1"></i>{{__('Create')}}
-                    </button>
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="printQuantity" class="mb-0 small text-muted">{{__('Copies')}}:</label>
-                        <input type="number" class="form-control form-control-sm" id="printQuantity" min="1"
-                            max="10" value="2" style="width: 60px;">
-                        <button type="button" class="btn btn-sm btn-success" id="btnCreateAndPrint">
-                            <i class="bi bi-printer me-1"></i>{{__('Create & Print')}}
+                    @if (Auth::check() && Auth::user()->role != 'admin')
+                        <button type="submit" class="btn btn-sm btn-brand" name="action" value="save">
+                            <i class="bi bi-check-circle me-1"></i>{{ __('Create') }}
                         </button>
-                    </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="printQuantity" class="mb-0 small text-muted">{{ __('Copies') }}:</label>
+                            <input type="number" class="form-control form-control-sm" id="printQuantity" min="1"
+                                max="10" value="2" style="width: 60px;">
+                            <button type="button" class="btn btn-sm btn-success" id="btnCreateAndPrint">
+                                <i class="bi bi-printer me-1"></i>{{ __('Create & Print') }}
+                            </button>
+                        </div>
+                    @else
+                        <button type="submit" class="btn btn-sm btn-warning" id="btnPushRfid" name="action"
+                            value="push_rfid">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>{{ __('Push to RFID App') }}
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -358,7 +384,7 @@
         <tr class="delivery-item">
             <td>
                 <select class="form-select form-select-sm pallet-select" name="items[INDEX][ckdbrg]" required>
-                    <option value="">{{__('Select pallet type')}}</option>
+                    <option value="">{{ __('Select pallet type') }}</option>
                 </select>
                 <!-- Hidden input for prefilled mode -->
                 <input type="hidden" class="pallet-hidden-input" name="" value="">
@@ -390,98 +416,122 @@
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
                     <h5 class="modal-title fw-bold" id="confirmationModalLabel">
-                        <i class="bi bi-exclamation-triangle me-2"></i>{{__('Confirm Delivery Note Submission')}}
+                        <i class="bi bi-exclamation-triangle me-2"></i>{{ __('Confirm Delivery Note Submission') }}
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-warning mb-3">
-                        <strong>{{__('Warning')}}:</strong> {{__('This action will record the delivery note and affect inventory and
-                        billing. Please confirm all information is correct before proceeding.')}}
+                    <div class="alert alert-warning mb-3" id="confirmAlertDefault">
+                        <strong>{{ __('Warning') }}:</strong>
+                        {{ __('This action will record the delivery note and affect inventory and billing. Please confirm all information is correct before proceeding.') }}
                     </div>
 
-                    <h6 class="fw-bold mb-2">{{__('Delivery Information')}}</h6>
+                    <div class="alert alert-info mb-3 d-none" id="confirmAlertRfid">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-wifi fs-5 mt-1 flex-shrink-0"></i>
+                            <div>
+                                <strong>{{ __('Push to RFID App') }}</strong>
+                                <p class="mb-2 mt-1">{{ __('This delivery note will be submitted with status') }} <span
+                                        class="badge bg-warning text-dark">Waiting for RFID</span>.</p>
+                                <p class="mb-1"><strong>{{ __('Next steps after submitting:') }}</strong></p>
+                                <ol class="mb-0 ps-3 small">
+                                    <li>{{ __('Note the') }} <strong>{{ __('Delivery Note Number') }}</strong>
+                                        {{ __('shown below.') }}</li>
+                                    <li>{{ __('Open the') }} <strong>{{ __('RFID App') }}</strong>
+                                        {{ __('and find this DN.') }}</li>
+                                    <li>{{ __('Scan the pallets using the RFID scanner.') }}</li>
+                                    <li>{{ __('Submit the scan — status will automatically update to') }} <span
+                                            class="badge bg-warning text-dark">Waiting for Print</span>.</li>
+                                    <li>{{ __('Return here to') }} <strong>{{ __('Print') }}</strong>
+                                        {{ __('the delivery note, which will then set it to') }} <span
+                                            class="badge bg-info">In Transit</span>.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">{{ __('Delivery Information') }}</h6>
                     <table class="table table-sm table-bordered mb-3">
                         <tr>
-                            <td class="fw-semibold" style="width: 30%">{{__('DN Number')}}</td>
+                            <td class="fw-semibold" style="width: 30%">{{ __('DN Number') }}</td>
                             <td id="confirm-dn-number"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Delivery Date')}}</td>
+                            <td class="fw-semibold">{{ __('Delivery Date') }}</td>
                             <td id="confirm-delivery-date"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Delivery Notes')}}</td>
+                            <td class="fw-semibold">{{ __('Delivery Notes') }}</td>
                             <td id="confirm-delivery-notes"></td>
                         </tr>
                     </table>
 
-                    <h6 class="fw-bold mb-2">{{__('Shipment Details')}}</h6>
+                    <h6 class="fw-bold mb-2">{{ __('Shipment Details') }}</h6>
                     <table class="table table-sm table-bordered mb-3">
                         <tr>
-                            <td class="fw-semibold" style="width: 30%">{{__('Sender')}}</td>
+                            <td class="fw-semibold" style="width: 30%">{{ __('Sender') }}</td>
                             <td id="confirm-sender"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Sender Address')}}</td>
+                            <td class="fw-semibold">{{ __('Sender Address') }}</td>
                             <td id="confirm-sender-address"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Receiver')}}</td>
+                            <td class="fw-semibold">{{ __('Receiver') }}</td>
                             <td id="confirm-receiver"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Receiver Address')}}</td>
+                            <td class="fw-semibold">{{ __('Receiver Address') }}</td>
                             <td id="confirm-receiver-address"></td>
                         </tr>
                     </table>
 
-                    <h6 class="fw-bold mb-2">{{__('Logistics Information')}}</h6>
+                    <h6 class="fw-bold mb-2">{{ __('Logistics Information') }}</h6>
                     <table class="table table-sm table-bordered mb-3">
                         <tr>
-                            <td class="fw-semibold" style="width: 30%">{{__('Logistics Company')}}</td>
+                            <td class="fw-semibold" style="width: 30%">{{ __('Logistics Company') }}</td>
                             <td id="confirm-logistics-company"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Driver Name')}}</td>
+                            <td class="fw-semibold">{{ __('Driver Name') }}</td>
                             <td id="confirm-driver-name"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Driver Phone')}}</td>
+                            <td class="fw-semibold">{{ __('Driver Phone') }}</td>
                             <td id="confirm-driver-phone"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Vehicle Type')}}</td>
+                            <td class="fw-semibold">{{ __('Vehicle Type') }}</td>
                             <td id="confirm-vehicle-type"></td>
                         </tr>
                         <tr>
-                            <td class="fw-semibold">{{__('Vehicle License')}}</td>
+                            <td class="fw-semibold">{{ __('Vehicle License') }}</td>
                             <td id="confirm-vehicle-license"></td>
                         </tr>
                         <tr id="confirm-container-row" style="display: none;">
-                            <td class="fw-semibold">{{__('Container Number')}}</td>
+                            <td class="fw-semibold">{{ __('Container Number') }}</td>
                             <td id="confirm-container-number"></td>
                         </tr>
                         <tr id="confirm-seal-row" style="display: none;">
-                            <td class="fw-semibold">{{__('Seal Number')}}</td>
+                            <td class="fw-semibold">{{ __('Seal Number') }}</td>
                             <td id="confirm-seal-number"></td>
                         </tr>
                     </table>
 
-                    <h6 class="fw-bold mb-2">{{ __("Delivery Items") }}</h6>
+                    <h6 class="fw-bold mb-2">{{ __('Delivery Items') }}</h6>
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
                             <tr>
-                                <th style="width: 10%">{{ __("No") }}</th>
-                                <th style="width: 60%">{{ __("Pallet Type") }}</th>
-                                <th style="width: 30%">{{ __("Quantity") }}</th>
+                                <th style="width: 10%">{{ __('No') }}</th>
+                                <th style="width: 60%">{{ __('Pallet Type') }}</th>
+                                <th style="width: 30%">{{ __('Quantity') }}</th>
                             </tr>
                         </thead>
                         <tbody id="confirm-items-list">
                         </tbody>
                         <tfoot>
                             <tr class="fw-bold">
-                                <td colspan="2" class="text-end">{{ __("TOTAL:") }}</td>
+                                <td colspan="2" class="text-end">{{ __('TOTAL:') }}</td>
                                 <td id="confirm-total-qty"></td>
                             </tr>
                         </tfoot>
@@ -489,10 +539,14 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle me-1"></i>{{__('Cancel')}}
+                        <i class="bi bi-x-circle me-1"></i>{{ __('Cancel') }}
                     </button>
                     <button type="button" class="btn btn-success" id="confirmSubmitBtn">
-                        <i class="bi bi-check-circle me-1"></i>{{__('Confirm & Submit')}}
+                        <i class="bi bi-check-circle me-1"></i>{{ __('Confirm & Submit') }}
+                    </button>
+                    <button type="button" class="btn btn-warning text-dark" id="confirmPushRfidBtn"
+                        style="display:none;">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>{{ __('Confirm & Push to RFID App') }}
                     </button>
                 </div>
             </div>
@@ -719,6 +773,9 @@
             const prefilledData = @json($prefilledData ?? null);
             const receiverOptions = @json($receiverOptions ?? null);
             const receiverWarehouseOptions = @json($receiverWarehouseOptions ?? null);
+            const useOrderRequestFlow = @json($useOrderRequestFlow ?? false);
+            const orderRequestOptions = @json($orderRequestOptions ?? []);
+            const stockData = @json($arrbarang ?? []);
 
             const fromEntity = document.getElementById('fromEntity');
             const fromAddressSelect = document.getElementById('fromAddressSelect');
@@ -730,6 +787,10 @@
             const toAddress = document.getElementById('toAddress');
             const toCity = document.getElementById('toCity');
             const toCkdwh = document.getElementById('toCkdwh');
+            const orderRequestSelect = document.getElementById('orderRequestSelect');
+            const orderRequestWarning = document.getElementById('orderRequestWarning');
+            const pushRfidBtn = document.getElementById('btnPushRfid');
+            const palletRequestIdInput = document.getElementById('palletRequestId');
             const addItemBtn = document.getElementById('addItemBtn');
             const deliveryItemsContainer = document.getElementById('deliveryItemsContainer');
             const noItemsPlaceholder = document.getElementById('noItemsPlaceholder');
@@ -760,7 +821,8 @@
 
                 const trigger = document.createElement('button');
                 trigger.type = 'button';
-                trigger.className = 'form-select form-select-sm text-start d-flex justify-content-between align-items-center';
+                trigger.className =
+                    'form-select form-select-sm text-start d-flex justify-content-between align-items-center';
                 trigger.setAttribute('data-bs-toggle', 'dropdown');
                 trigger.setAttribute('aria-expanded', 'false');
                 trigger.innerHTML = '<span></span>';
@@ -803,7 +865,9 @@
 
                         btn.addEventListener('click', () => {
                             selectEl.selectedIndex = index;
-                            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            selectEl.dispatchEvent(new Event('change', {
+                                bubbles: true
+                            }));
                         });
 
                         item.appendChild(btn);
@@ -812,11 +876,18 @@
                 };
 
                 const observer = new MutationObserver(sync);
-                observer.observe(selectEl, { childList: true, subtree: true, characterData: true, attributes: true });
+                observer.observe(selectEl, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true,
+                    attributes: true
+                });
                 selectEl.addEventListener('change', sync);
                 sync();
 
-                return { sync };
+                return {
+                    sync
+                };
             }
 
             const toAddressStyledDropdown = initStyledDistanceDropdown(toAddressSelect);
@@ -837,7 +908,7 @@
                 const receiverCustomerId = toCustomerNetwork.value;
 
                 if (!receiverCustomerId) {
-                    toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                    toAddressSelect.innerHTML = '<option value="">{{ __('Select receiver first') }}</option>';
                     return;
                 }
 
@@ -850,10 +921,12 @@
                 const selectElement = type === 'from' ? fromAddressSelect : toAddressSelect;
                 selectElement.innerHTML = '<option value="">Loading...</option>';
                 const selectedFromAddressOption = fromAddressSelect.options[fromAddressSelect.selectedIndex];
-                const senderCity = selectedFromAddressOption?.dataset?.city || fromCity.value || 'KABUPATEN SIDOARJO';
+                const senderCity = selectedFromAddressOption?.dataset?.city || fromCity.value || (isAdmin ?
+                    'KABUPATEN SIDOARJO' : '');
 
                 try {
-                    const response = await fetch(`/api/customers/${customerId}/addresses?city=${encodeURIComponent(senderCity)}`);
+                    const response = await fetch(
+                        `/api/customers/${customerId}/addresses?city=${encodeURIComponent(senderCity)}`);
                     const addresses = await response.json();
 
                     selectElement.innerHTML = '<option value="">Select address</option>';
@@ -866,7 +939,8 @@
                         option.dataset.type = addr.type;
                         option.dataset.baseLabel = addr.label;
                         option.dataset.distanceLabel = addr.distance;
-                        option.innerHTML = `${addr.label} <span style="color:#198754;">${addr.distance}</span>`;
+                        option.innerHTML =
+                            `${addr.label} <span style="color:#198754;">${addr.distance}</span>`;
                         selectElement.appendChild(option);
                     });
 
@@ -877,13 +951,13 @@
 
                 } catch (error) {
                     console.error('Error loading addresses:', error);
-                    selectElement.innerHTML = '<option value="">Error loading addresses</option>';
+                    selectElement.innerHTML = '<option value="">Select sender first</option>';
                 }
             }
 
             async function loadCustomerNetwork(customerId, companyCode = null) {
                 toCustomerNetwork.innerHTML = '<option value="">Loading...</option>';
-                toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                toAddressSelect.innerHTML = '<option value="">{{ __('Select receiver first') }}</option>';
                 clearToCustomerFields();
 
                 try {
@@ -896,10 +970,11 @@
 
                     const partners = await response.json();
 
-                    toCustomerNetwork.innerHTML = '<option value="">{{__("Select receiver")}}</option>';
+                    toCustomerNetwork.innerHTML = '<option value="">{{ __('Select receiver') }}</option>';
 
                     if (partners.length === 0) {
-                        toCustomerNetwork.innerHTML = '<option value="">{{__("No receivers found")}}</option>';
+                        toCustomerNetwork.innerHTML =
+                            '<option value="">{{ __('No receivers found') }}</option>';
                         return;
                     }
 
@@ -946,15 +1021,38 @@
                 }
             }
 
+            function getStockMeta(ckdbrg, ckdwh) {
+                if (!ckdbrg || !ckdwh || !stockData) {
+                    return null;
+                }
+
+                const warehouseData = stockData[ckdbrg];
+                if (!warehouseData || !warehouseData[ckdwh]) {
+                    return null;
+                }
+
+                return {
+                    stock: warehouseData[ckdwh]['jumlah'],
+                    name: warehouseData[ckdwh]['name'] || ckdbrg,
+                    size: warehouseData[ckdwh]['size'] || '',
+                };
+            }
+
             function setStockItemToSend() {
                 let ckdwh = document.getElementById('fromCkdwh').value;
 
-                const stockData = <?php echo json_encode($arrbarang); ?>;
                 console.log('Stock data:', stockData);
                 console.log('Selected warehouse:', ckdwh);
 
+                // Add this to debug:
+                Object.keys(stockData).forEach(ckdbrg => {
+                    if (stockData[ckdbrg][ckdwh] !== undefined) {
+                        console.log(`ckdbrg: ${ckdbrg}, jumlah: ${stockData[ckdbrg][ckdwh]['jumlah']}`);
+                    }
+                });
 
-                let strhtml = '<option value="">{{__("Select pallet type")}}</option>';
+
+                let strhtml = '<option value="">{{ __('Select pallet type') }}</option>';
 
                 Object.keys(stockData).forEach(ckdbrg => {
                     const warehouseData = stockData[ckdbrg];
@@ -962,10 +1060,11 @@
                     if (warehouseData[ckdwh] && warehouseData[ckdwh]['jumlah']) {
                         const stock = warehouseData[ckdwh]['jumlah'];
                         const itemName = warehouseData[ckdwh]['name'] || ckdbrg;
+                        const size = warehouseData[ckdwh]['size'] || '';
 
                         if (stock > 0) {
                             strhtml +=
-                                `<option value="${ckdbrg}" data-stock="${stock}">${itemName} - Stock: ${stock} pcs</option>`;
+                                `<option value="${ckdbrg}" data-stock="${stock}">${itemName} (${size} mm) - Stock: ${stock} pcs</option>`;
                         }
                     }
                 });
@@ -992,7 +1091,7 @@
 
                 // Step 1: Manually populate sender warehouse dropdown
                 if (prefilledData.from_warehouse_ckdwh) {
-                    fromAddressSelect.innerHTML = '<option value="">{{__("Select address")}}</option>';
+                    fromAddressSelect.innerHTML = '<option value="">{{ __('Select address') }}</option>';
                     const fromOption = document.createElement('option');
                     fromOption.value = prefilledData.from_warehouse_ckdwh;
                     fromOption.dataset.address = prefilledData.from_warehouse_address;
@@ -1028,7 +1127,7 @@
 
                 // Step 3: Manually populate receiver dropdown
                 if (receiverOptions && receiverOptions.length > 0) {
-                    toCustomerNetwork.innerHTML = '<option value="">{{__("Select receiver")}}</option>';
+                    toCustomerNetwork.innerHTML = '<option value="">{{ __('Select receiver') }}</option>';
                     receiverOptions.forEach(receiver => {
                         const option = document.createElement('option');
                         option.value = receiver.nidcust || receiver.ckdcust;
@@ -1051,7 +1150,7 @@
 
                 // Step 4: Manually populate receiver warehouse dropdown
                 if (receiverWarehouseOptions && receiverWarehouseOptions.length > 0) {
-                    toAddressSelect.innerHTML = '<option value="">{{__("Select address")}}</option>';
+                    toAddressSelect.innerHTML = '<option value="">{{ __('Select address') }}</option>';
                     receiverWarehouseOptions.forEach(wh => {
                         const option = document.createElement('option');
                         option.value = wh.ckdwh;
@@ -1072,14 +1171,17 @@
                 }
 
                 // Step 5: Call setStockItemToSend to populate options
-                setStockItemToSend();
+                // setStockItemToSend();
 
                 // Step 6: Add and prefill item
                 setTimeout(() => {
                     deliveryItemsContainer.innerHTML = '';
                     addItemBtn.click();
+                    // Ensure the newly added row gets stock options.
+                    // setStockItemToSend();
 
                     setTimeout(() => {
+                        setStockItemToSend();
                         const firstRow = deliveryItemsContainer.querySelector('.delivery-item');
                         if (firstRow && prefilledData.pallet_ckdbrg) {
                             const palletSelect = firstRow.querySelector('.pallet-select');
@@ -1090,10 +1192,23 @@
                                 o => o.value));
 
                             // Set the select value (for display purposes)
-                            palletSelect.value = prefilledData.pallet_ckdbrg;
+                            const desiredPalletCode = String(prefilledData.pallet_ckdbrg || '');
+                            palletSelect.value = desiredPalletCode;
+
+                            // If value didn't match (e.g. leading-zero mismatch), try numeric match.
+                            if (palletSelect.value !== desiredPalletCode && desiredPalletCode !==
+                                '') {
+                                const desiredNumeric = Number(desiredPalletCode);
+                                const numericMatch = Array.from(palletSelect.options).find(opt =>
+                                    Number(opt.value) === desiredNumeric
+                                );
+                                if (numericMatch) {
+                                    palletSelect.value = numericMatch.value;
+                                }
+                            }
                             quantityInput.value = prefilledData.quantity;
 
-                            if (palletSelect.value !== prefilledData.pallet_ckdbrg) {
+                            if (!palletSelect.value) {
                                 console.error('Failed to select pallet type:', prefilledData
                                     .pallet_ckdbrg);
                                 console.log('Pallet select current value:', palletSelect.value);
@@ -1102,7 +1217,7 @@
                             // SOLUTION: Disable the select and add a hidden input with the actual value
                             palletSelect.disabled = true;
                             palletSelect.removeAttribute(
-                            'required'); // Remove required from disabled select
+                                'required'); // Remove required from disabled select
                             palletSelect.style.backgroundColor = '#e9ecef';
                             palletSelect.style.cursor = 'not-allowed';
 
@@ -1110,16 +1225,16 @@
                             const hiddenPalletInput = document.createElement('input');
                             hiddenPalletInput.type = 'hidden';
                             hiddenPalletInput.name = palletSelect
-                            .name; // Use the same name as the select
-                            hiddenPalletInput.value = prefilledData.pallet_ckdbrg;
+                                .name; // Use the same name as the select
+                            hiddenPalletInput.value = palletSelect.value || desiredPalletCode;
                             hiddenPalletInput.className =
-                            'prefilled-pallet-input'; // Mark it for identification
+                                'prefilled-pallet-input'; // Mark it for identification
                             palletSelect.parentNode.appendChild(hiddenPalletInput);
 
                             // Disable quantity input and add hidden input
                             quantityInput.disabled = true;
                             quantityInput.removeAttribute(
-                            'required'); // Remove required from disabled input
+                                'required'); // Remove required from disabled input
                             quantityInput.style.backgroundColor = '#e9ecef';
                             quantityInput.style.cursor = 'not-allowed';
 
@@ -1129,7 +1244,7 @@
                             hiddenQuantityInput.name = quantityInput.name; // Use the same name
                             hiddenQuantityInput.value = prefilledData.quantity;
                             hiddenQuantityInput.className =
-                            'prefilled-quantity-input'; // Mark it for identification
+                                'prefilled-quantity-input'; // Mark it for identification
                             quantityInput.parentNode.appendChild(hiddenQuantityInput);
 
                             const removeBtn = firstRow.querySelector('.remove-item-btn');
@@ -1139,6 +1254,272 @@
                         }
                     }, 200);
                 }, 100);
+            }
+
+            function setOrderRequestWarning(message) {
+                if (orderRequestWarning) {
+                    orderRequestWarning.textContent = message;
+                    orderRequestWarning.classList.remove('d-none');
+                }
+                if (pushRfidBtn) {
+                    pushRfidBtn.disabled = true;
+                }
+            }
+
+            function clearOrderRequestWarning() {
+                if (orderRequestWarning) {
+                    orderRequestWarning.textContent = '';
+                    orderRequestWarning.classList.add('d-none');
+                }
+                if (pushRfidBtn) {
+                    pushRfidBtn.disabled = false;
+                }
+            }
+
+            function ensureSelectOption(select, value, label, stock) {
+                const existing = Array.from(select.options).find(opt => opt.value === value);
+                if (existing) {
+                    return existing;
+                }
+                const option = document.createElement('option');
+                option.value = value;
+                if (typeof stock === 'number') {
+                    option.dataset.stock = stock;
+                }
+                option.textContent = label;
+                select.appendChild(option);
+                return option;
+            }
+
+            function pickPalletCandidate(orderRequest, ckdwh) {
+                const candidates = orderRequest.pallet_candidates || [];
+                if (ckdwh) {
+                    const withStock = candidates.find(candidate => {
+                        const meta = getStockMeta(candidate, ckdwh);
+                        return meta && meta.stock > 0;
+                    });
+                    if (withStock) {
+                        return withStock;
+                    }
+                }
+                return candidates[0] || '';
+            }
+
+            function applyOrderRequestItem(orderRequest) {
+                deliveryItemsContainer.innerHTML = '';
+                addItemBtn.click();
+
+                const firstRow = deliveryItemsContainer.querySelector('.delivery-item');
+                if (!firstRow) {
+                    return;
+                }
+
+                const palletSelect = firstRow.querySelector('.pallet-select');
+                const quantityInput = firstRow.querySelector('.quantity-input');
+                const removeBtn = firstRow.querySelector('.remove-item-btn');
+
+                const palletCode = pickPalletCandidate(orderRequest, fromCkdwh.value);
+                const meta = getStockMeta(palletCode, fromCkdwh.value);
+                const stock = meta?.stock ?? 0;
+                const name = meta?.name || orderRequest.pallet_type || palletCode || 'Unknown Pallet';
+                const sizeLabel = meta?.size ? ` (${meta.size} mm)` : '';
+
+                palletSelect.innerHTML = '';
+                ensureSelectOption(
+                    palletSelect,
+                    palletCode,
+                    `${name}${sizeLabel} - Stock: ${stock} pcs`,
+                    stock
+                );
+                palletSelect.value = palletCode;
+
+                quantityInput.value = orderRequest.quantity || 0;
+
+                palletSelect.disabled = true;
+                palletSelect.removeAttribute('required');
+                palletSelect.style.backgroundColor = '#e9ecef';
+                palletSelect.style.cursor = 'not-allowed';
+
+                const hiddenPalletInput = document.createElement('input');
+                hiddenPalletInput.type = 'hidden';
+                hiddenPalletInput.name = palletSelect.name;
+                hiddenPalletInput.value = palletCode;
+                hiddenPalletInput.className = 'prefilled-pallet-input';
+                palletSelect.parentNode.appendChild(hiddenPalletInput);
+
+                quantityInput.disabled = true;
+                quantityInput.removeAttribute('required');
+                quantityInput.style.backgroundColor = '#e9ecef';
+                quantityInput.style.cursor = 'not-allowed';
+
+                const hiddenQuantityInput = document.createElement('input');
+                hiddenQuantityInput.type = 'hidden';
+                hiddenQuantityInput.name = quantityInput.name;
+                hiddenQuantityInput.value = orderRequest.quantity || 0;
+                hiddenQuantityInput.className = 'prefilled-quantity-input';
+                quantityInput.parentNode.appendChild(hiddenQuantityInput);
+
+                if (removeBtn) {
+                    removeBtn.style.display = 'none';
+                }
+
+                if (!meta) {
+                    setOrderRequestWarning(
+                        `Pallet type not found in warehouse stock. Stock: 0 pcs, Requested: ${orderRequest.quantity || 0} pcs.`
+                    );
+                } else if (stock < (orderRequest.quantity || 0)) {
+                    setOrderRequestWarning(
+                        `Order request quantity exceeds stock. Stock: ${stock} pcs, Requested: ${orderRequest.quantity || 0} pcs.`
+                    );
+                } else {
+                    clearOrderRequestWarning();
+                }
+            }
+
+            function applyOrderRequestSelection(orderRequest) {
+                if (!orderRequest) {
+                    return;
+                }
+
+                if (palletRequestIdInput) {
+                    palletRequestIdInput.value = orderRequest.id;
+                }
+
+                const sender = orderRequest.sender || {};
+                const senderValue = sender.ckdcomp ? `company_${sender.ckdcomp}` : '';
+
+                if (senderValue) {
+                    ensureSelectOption(fromEntity, senderValue, sender.cnmcomp || senderValue);
+                    fromEntity.value = senderValue;
+                }
+
+                fromEntity.disabled = true;
+                fromAddressSelect.innerHTML = '<option value="">{{ __('Select address') }}</option>';
+                const senderLabel = sender.warehouse_name && sender.city ?
+                    `${sender.warehouse_name} - ${sender.city}` :
+                    (sender.warehouse_name || '');
+                const senderOption = document.createElement('option');
+                senderOption.value = sender.ckdwh || '';
+                senderOption.dataset.address = sender.address || '';
+                senderOption.dataset.city = sender.city || '';
+                senderOption.dataset.type = 'warehouse';
+                senderOption.textContent = senderLabel;
+                senderOption.selected = true;
+                fromAddressSelect.appendChild(senderOption);
+                fromAddressSelect.disabled = true;
+
+                document.getElementById('fromType').value = 'company';
+                document.getElementById('fromCustomerNid').value = '';
+                document.getElementById('fromCustomerKd').value = sender.ckdcomp || '';
+                document.getElementById('fromCustomerName').value = sender.cnmcomp || '';
+                fromAddress.value = sender.address || '';
+                fromCity.value = sender.city || '';
+                fromCkdwh.value = sender.ckdwh || '';
+
+                if (isAdmin && sender.ckdcomp) {
+                    generateDeliveryNoteNumber('company', sender.ckdcomp);
+                }
+
+                const receiver = orderRequest.receiver || {};
+                toCustomerNetwork.innerHTML = '<option value="">{{ __('Select receiver') }}</option>';
+                const receiverOption = document.createElement('option');
+                receiverOption.value = receiver.nidcust || receiver.ckdcust || '';
+                receiverOption.dataset.ckdcust = receiver.ckdcust || '';
+                receiverOption.dataset.cnmcust = receiver.cnmcust || '';
+                receiverOption.dataset.type = 'customer';
+                receiverOption.textContent = receiver.cnmcust || receiver.ckdcust || '';
+                receiverOption.selected = true;
+                toCustomerNetwork.appendChild(receiverOption);
+                toCustomerNetwork.disabled = true;
+
+                document.getElementById('toType').value = 'customer';
+                document.getElementById('toCustomerNid').value = receiver.nidcust || '';
+                document.getElementById('toCustomerKd').value = receiver.ckdcust || '';
+                document.getElementById('toCustomerName').value = receiver.cnmcust || '';
+                document.getElementById('agreementId').value = '';
+
+                toAddressSelect.innerHTML = '<option value="">{{ __('Select address') }}</option>';
+                const receiverLabel = receiver.warehouse_name && receiver.city ?
+                    `${receiver.warehouse_name} - ${receiver.city}` :
+                    (receiver.warehouse_name || '');
+                const receiverWhOption = document.createElement('option');
+                receiverWhOption.value = receiver.ckdwh || '';
+                receiverWhOption.dataset.address = receiver.address || '';
+                receiverWhOption.dataset.city = receiver.city || '';
+                receiverWhOption.dataset.type = 'warehouse';
+                receiverWhOption.textContent = receiverLabel;
+                receiverWhOption.selected = true;
+                toAddressSelect.appendChild(receiverWhOption);
+                toAddressSelect.disabled = true;
+
+                toAddress.value = receiver.address || '';
+                toCity.value = receiver.city || '';
+                toCkdwh.value = receiver.ckdwh || '';
+
+                applyOrderRequestItem(orderRequest);
+            }
+
+            function clearOrderRequestSelection() {
+                if (palletRequestIdInput) {
+                    palletRequestIdInput.value = '';
+                }
+                fromEntity.value = '';
+                fromAddressSelect.innerHTML = '<option value="">{{ __('Select address') }}</option>';
+                toCustomerNetwork.innerHTML = '<option value="">{{ __('Select sender first') }}</option>';
+                toAddressSelect.innerHTML = '<option value="">{{ __('Select receiver first') }}</option>';
+
+                document.getElementById('fromType').value = 'company';
+                document.getElementById('fromCustomerNid').value = '';
+                document.getElementById('fromCustomerKd').value = '';
+                document.getElementById('fromCustomerName').value = '';
+                document.getElementById('toType').value = 'customer';
+                document.getElementById('toCustomerNid').value = '';
+                document.getElementById('toCustomerKd').value = '';
+                document.getElementById('toCustomerName').value = '';
+                document.getElementById('agreementId').value = '';
+                fromAddress.value = '';
+                fromCity.value = '';
+                fromCkdwh.value = '';
+                toAddress.value = '';
+                toCity.value = '';
+                toCkdwh.value = '';
+
+                deliveryItemsContainer.innerHTML = '';
+                noItemsPlaceholder.style.display = 'block';
+                clearOrderRequestWarning();
+
+                if (pushRfidBtn) {
+                    pushRfidBtn.disabled = true;
+                }
+            }
+
+            const orderRequestMap = new Map(orderRequestOptions.map(request => [String(request.id), request]));
+
+            if (useOrderRequestFlow && addItemBtn) {
+                addItemBtn.style.display = 'none';
+            }
+
+            if (orderRequestSelect) {
+                if (pushRfidBtn) {
+                    pushRfidBtn.disabled = true;
+                }
+
+                orderRequestSelect.addEventListener('change', function() {
+                    const selectedRequest = orderRequestMap.get(String(this.value || ''));
+                    if (!selectedRequest) {
+                        clearOrderRequestSelection();
+                        return;
+                    }
+
+                    applyOrderRequestSelection(selectedRequest);
+                });
+
+                if (orderRequestSelect.value) {
+                    const selectedRequest = orderRequestMap.get(String(orderRequestSelect.value));
+                    if (selectedRequest) {
+                        applyOrderRequestSelection(selectedRequest);
+                    }
+                }
             }
 
             // Toggle export container fields
@@ -1158,7 +1539,8 @@
             fromEntity.addEventListener('change', async function() {
                 const selectedOption = this.options[this.selectedIndex];
 
-                toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                toAddressSelect.innerHTML =
+                    '<option value="">{{ __('Select receiver first') }}</option>';
                 clearToCustomerFields();
 
                 if (this.value) {
@@ -1179,7 +1561,8 @@
                         }
 
                         if (isAdmin) {
-                            fromAddressSelect.innerHTML = '<option value="">{{__("Select warehouse")}}</option>';
+                            fromAddressSelect.innerHTML =
+                                '<option value="">{{ __('Select warehouse') }}</option>';
                             warehouses.forEach(wh => {
                                 const option = document.createElement('option');
                                 option.value = wh.ckdwh;
@@ -1217,13 +1600,16 @@
                     document.getElementById('fromCustomerNid').value = '';
                     document.getElementById('fromCustomerKd').value = '';
                     document.getElementById('fromCustomerName').value = '';
-                    fromAddressSelect.innerHTML = '<option value="">{{__("Select sender first")}}</option>';
+                    fromAddressSelect.innerHTML =
+                        '<option value="">{{ __('Select sender first') }}</option>';
                     fromAddress.value = '';
                     fromCity.value = '';
                     fromCkdwh.value = '';
 
-                    toCustomerNetwork.innerHTML = '<option value="">{{__("Select sender first")}}</option>';
-                    toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                    toCustomerNetwork.innerHTML =
+                        '<option value="">{{ __('Select sender first') }}</option>';
+                    toAddressSelect.innerHTML =
+                        '<option value="">{{ __('Select receiver first') }}</option>';
                     clearToCustomerFields();
                 }
             });
@@ -1258,7 +1644,8 @@
                     loadCustomerAddresses(this.value, 'to');
                 } else {
                     clearToCustomerFields();
-                    toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                    toAddressSelect.innerHTML =
+                        '<option value="">{{ __('Select receiver first') }}</option>';
                 }
             });
 
@@ -1276,7 +1663,8 @@
             });
 
             // For non-admin users initialization (non-prefilled mode)
-            if (!prefilledMode && ((isCustomerUser || isCompanyWarehouse) && fromEntity.value)) {
+            if (!prefilledMode && !useOrderRequestFlow && ((isCustomerUser || isCompanyWarehouse) && fromEntity
+                    .value)) {
                 if ((isWarehousePic || isCompanyWarehouse) && fromAddressSelect.options.length > 1) {
                     if (fromAddressSelect.selectedIndex <= 0) {
                         fromAddressSelect.selectedIndex = 1;
@@ -1440,8 +1828,8 @@
                 setStockItemToSend();
             });
 
-            // Add one item by default ONLY if not in prefilled mode
-            if (!prefilledMode) {
+            // Add one item by default ONLY if not in prefilled mode and not in order request flow
+            if (!prefilledMode && !useOrderRequestFlow) {
                 addItemBtn.click();
             }
 
@@ -1457,20 +1845,17 @@
 
                 if (!isConfirmedSubmit) {
                     e.preventDefault();
-                    showConfirmationModal('submit');
+                    const submitterValue = (e.submitter && e.submitter.value) ? e.submitter.value : 'save';
+                    const modalAction = submitterValue === 'push_rfid' ? 'push_rfid' : 'submit';
+                    showConfirmationModal(modalAction);
                 }
-            });
-
-            document.getElementById('confirmSubmitBtn').addEventListener('click', function() {
-                isConfirmedSubmit = true;
-                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
-                modal.hide();
-                document.getElementById('deliveryNoteForm').submit();
             });
 
             if (resetBtn) {
                 resetBtn.addEventListener('click', function() {
-                    if (confirm('{{__("Are you sure you want to reset the form? All entered data will be lost.")}}')) {
+                    if (confirm(
+                            '{{ __('Are you sure you want to reset the form? All entered data will be lost.') }}'
+                        )) {
                         document.getElementById('deliveryNoteForm').reset();
                         deliveryItemsContainer.innerHTML = '';
                         noItemsPlaceholder.style.display = 'block';
@@ -1497,13 +1882,21 @@
                         document.getElementById('toCustomerName').value = '';
 
                         if (isAdmin) {
-                            fromAddressSelect.innerHTML = '<option value="">{{__("Select sender first")}}</option>';
+                            fromAddressSelect.innerHTML =
+                                '<option value="">{{ __('Select sender first') }}</option>';
                         }
-                        toCustomerNetwork.innerHTML = '<option value="">{{__("Select sender first")}}</option>';
-                        toAddressSelect.innerHTML = '<option value="">{{__("Select receiver first")}}</option>';
+                        toCustomerNetwork.innerHTML =
+                            '<option value="">{{ __('Select sender first') }}</option>';
+                        toAddressSelect.innerHTML =
+                            '<option value="">{{ __('Select receiver first') }}</option>';
 
                         if (!isAdmin && fromEntity.value) {
                             loadCustomerNetwork(fromEntity.value);
+                        }
+
+                        if (useOrderRequestFlow && orderRequestSelect) {
+                            orderRequestSelect.value = '';
+                            clearOrderRequestSelection();
                         }
                     }
                 });
@@ -1649,22 +2042,22 @@
                                 ${vehicleLicenseVal}
                             </div>
                             ${isExportChecked ? `
-                                                                                                                        <div>
-                                                                                                                            <strong>Container No.:</strong><br>
-                                                                                                                            ${containerNumberVal || '-'}
-                                                                                                                        </div>
-                                                                                                                        <div>
-                                                                                                                            <strong>Seal No.:</strong><br>
-                                                                                                                            ${sealNumberVal || '-'}
-                                                                                                                        </div>
-                                                                                                                    ` : ''}
+                                                                                                                                                                            <div>
+                                                                                                                                                                                <strong>Container No.:</strong><br>
+                                                                                                                                                                                ${containerNumberVal || '-'}
+                                                                                                                                                                            </div>
+                                                                                                                                                                            <div>
+                                                                                                                                                                                <strong>Seal No.:</strong><br>
+                                                                                                                                                                                ${sealNumberVal || '-'}
+                                                                                                                                                                            </div>
+                                                                                                                                                                        ` : ''}
                         </div>
                     </div>
 
                     ${deliveryNotesVal ? `
-                                                                                                                                                        <div class="section-title">Notes</div>
-                                                                                                                                                        <div style="font-size: 8pt; margin-bottom: 8px; padding: 3px 5px; border: 1px solid #ccc;">${deliveryNotesVal}</div>
-                                                                                                                                                    ` : ''}
+                                                                                                                                                                                                            <div class="section-title">Notes</div>
+                                                                                                                                                                                                            <div style="font-size: 8pt; margin-bottom: 8px; padding: 3px 5px; border: 1px solid #ccc;">${deliveryNotesVal}</div>
+                                                                                                                                                                                                        ` : ''}
 
                     <div class="section-title">Delivery Items</div>
                     <table>
@@ -1832,6 +2225,16 @@
 
                 // Update confirm button based on action
                 const confirmBtn = document.getElementById('confirmSubmitBtn');
+                const confirmRfidBtn = document.getElementById('confirmPushRfidBtn');
+                const alertDefault = document.getElementById('confirmAlertDefault');
+                const alertRfid = document.getElementById('confirmAlertRfid');
+
+                // Reset state
+                confirmBtn.style.display = '';
+                confirmRfidBtn.style.display = 'none';
+                alertDefault.classList.remove('d-none');
+                alertRfid.classList.add('d-none');
+
                 if (action === 'print') {
                     confirmBtn.innerHTML = '<i class="bi bi-printer me-1"></i>Confirm & Print';
                     confirmBtn.onclick = function() {
@@ -1839,7 +2242,8 @@
                         const modal = bootstrap.Modal.getInstance(modalElement);
 
                         const form = document.getElementById('deliveryNoteForm');
-                        const existingAction = form.querySelector('input[name="action"][value="save_and_print"]');
+                        const existingAction = form.querySelector(
+                            'input[name="action"][value="save_and_print"]');
                         if (!existingAction) {
                             const printInput = document.createElement('input');
                             printInput.type = 'hidden';
@@ -1850,17 +2254,54 @@
 
                         isConfirmedSubmit = true;
                         form.submit();
-
-                        // Hide modal AFTER submit starts
                         modal.hide();
                     };
+
+                } else if (action === 'push_rfid') {
+                    // Show RFID guidance, hide default warning
+                    alertDefault.classList.add('d-none');
+                    alertRfid.classList.remove('d-none');
+
+                    // Swap buttons
+                    confirmBtn.style.display = 'none';
+                    confirmRfidBtn.style.display = '';
+
+                    confirmRfidBtn.onclick = function() {
+                        isConfirmedSubmit = true;
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
+                        modal.hide();
+
+                        const form = document.getElementById('deliveryNoteForm');
+                        let hiddenAction = form.querySelector('input.injected-action');
+                        if (!hiddenAction) {
+                            hiddenAction = document.createElement('input');
+                            hiddenAction.type = 'hidden';
+                            hiddenAction.name = 'action';
+                            hiddenAction.className = 'injected-action';
+                            form.appendChild(hiddenAction);
+                        }
+                        hiddenAction.value = 'push_rfid';
+                        form.submit();
+                    };
+
                 } else {
                     confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm & Submit';
                     confirmBtn.onclick = function() {
                         isConfirmedSubmit = true;
                         const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
                         modal.hide();
-                        document.getElementById('deliveryNoteForm').submit();
+
+                        const form = document.getElementById('deliveryNoteForm');
+                        let hiddenAction = form.querySelector('input.injected-action');
+                        if (!hiddenAction) {
+                            hiddenAction = document.createElement('input');
+                            hiddenAction.type = 'hidden';
+                            hiddenAction.name = 'action';
+                            hiddenAction.className = 'injected-action';
+                            form.appendChild(hiddenAction);
+                        }
+                        hiddenAction.value = 'save';
+                        form.submit();
                     };
                 }
 
@@ -1885,15 +2326,15 @@
                     showButtons: ['next', 'previous', 'close'],
                     steps: [{
                             popover: {
-                                title: '📝 {{__("Create New Delivery Note")}}',
-                                description: '{{__('This form is used to record a new delivery of pallets. Let’s go through the key steps in the correct order.')}}'
+                                title: '📝 {{ __('Create New Delivery Note') }}',
+                                description: '{{ __('This form is used to record a new delivery of pallets. Let’s go through the key steps in the correct order.') }}'
                             }
                         },
                         {
                             element: '#deliveryNoteNumber',
                             popover: {
-                                title: '📄 {{__("Delivery Note Number")}}',
-                                description: '{{__("This number is generated automatically by the system and cannot be edited.")}}',
+                                title: '📄 {{ __('Delivery Note Number') }}',
+                                description: '{{ __('This number is generated automatically by the system and cannot be edited.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1901,8 +2342,8 @@
                         {
                             element: '#deliveryDate',
                             popover: {
-                                title: '📅 {{__("Delivery Date")}}',
-                                description: '{{__("Select the date when the delivery is dispatched.")}}',
+                                title: '📅 {{ __('Delivery Date') }}',
+                                description: '{{ __('Select the date when the delivery is dispatched.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1910,8 +2351,8 @@
                         {
                             element: '#fromEntity',
                             popover: {
-                                title: '🏭 {{__("Sender")}}',
-                                description: '{{ __("Choose who is sending the pallets.") }}<br><br>{{ __("This can be a company warehouse or a customer, depending on your role.") }}',
+                                title: '🏭 {{ __('Sender') }}',
+                                description: '{{ __('Choose who is sending the pallets.') }}<br><br>{{ __('This can be a company warehouse or a customer, depending on your role.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1919,8 +2360,8 @@
                         {
                             element: '#fromAddressSelect',
                             popover: {
-                                title: '📍 {{__("Sender Address")}}',
-                                description: '{{ __("Select the warehouse or address where the pallets are dispatched from.") }}',
+                                title: '📍 {{ __('Sender Address') }}',
+                                description: '{{ __('Select the warehouse or address where the pallets are dispatched from.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1928,8 +2369,8 @@
                         {
                             element: '#toCustomerNetwork',
                             popover: {
-                                title: '👤 {{__("Receiver")}}',
-                                description: '{{ __("Select the customer who will receive the pallets.") }}<br><br>{{ __("Available receivers depend on the selected sender and agreements.") }}',
+                                title: '👤 {{ __('Receiver') }}',
+                                description: '{{ __('Select the customer who will receive the pallets.') }}<br><br>{{ __('Available receivers depend on the selected sender and agreements.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1937,8 +2378,8 @@
                         {
                             element: '#toAddressSelect',
                             popover: {
-                                title: '📍 {{__("Receiver Address")}}',
-                                description: '{{ __("Choose the destination address for this delivery.") }}',
+                                title: '📍 {{ __('Receiver Address') }}',
+                                description: '{{ __('Choose the destination address for this delivery.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1946,8 +2387,8 @@
                         {
                             element: '#logisticsCompanyInput',
                             popover: {
-                                title: '🚚 {{__("Logistics Company")}}',
-                                description: '{{ __("Enter or select the logistics company handling this delivery.") }}',
+                                title: '🚚 {{ __('Logistics Company') }}',
+                                description: '{{ __('Enter or select the logistics company handling this delivery.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1955,8 +2396,8 @@
                         {
                             element: '#driverNameInput',
                             popover: {
-                                title: '🧑‍✈️ {{__("Driver Information")}}',
-                                description: '{{ __("Select an existing driver or enter a new one. Driver phone and vehicle details may auto-fill.") }}',
+                                title: '🧑‍✈️ {{ __('Driver Information') }}',
+                                description: '{{ __('Select an existing driver or enter a new one. Driver phone and vehicle details may auto-fill.') }}',
                                 side: 'bottom',
                                 align: 'start'
                             }
@@ -1964,8 +2405,8 @@
                         {
                             element: '#isExport',
                             popover: {
-                                title: '📦 {{__("Container Shipment")}}',
-                                description: '{{ __("Enable this if the delivery uses a container. Additional container and seal fields will appear.") }}',
+                                title: '📦 {{ __('Container Shipment') }}',
+                                description: '{{ __('Enable this if the delivery uses a container. Additional container and seal fields will appear.') }}',
                                 side: 'right',
                                 align: 'start'
                             }
@@ -1973,8 +2414,8 @@
                         {
                             element: '#addItemBtn',
                             popover: {
-                                title: '➕ {{__("Delivery Items")}}',
-                                description: '{{ __("Add pallet types and quantities to be delivered.") }}<br><br>{{ __("At least one item is required.") }}',
+                                title: '➕ {{ __('Delivery Items') }}',
+                                description: '{{ __('Add pallet types and quantities to be delivered.') }}<br><br>{{ __('At least one item is required.') }}',
                                 side: 'left',
                                 align: 'start'
                             }
@@ -1982,8 +2423,8 @@
                         {
                             element: '#deliveryItemsTable',
                             popover: {
-                                title: '📦 {{__("Item Details")}}',
-                                description: '{{ __("Each row represents a pallet type and quantity being delivered.") }}',
+                                title: '📦 {{ __('Item Details') }}',
+                                description: '{{ __('Each row represents a pallet type and quantity being delivered.') }}',
                                 side: 'top',
                                 align: 'start'
                             }
@@ -1991,8 +2432,8 @@
                         {
                             element: '#btnCreateDelivery',
                             popover: {
-                                title: '✅ {{__("Create Delivery Note")}}',
-                                description: '{{ __("Save the delivery note after reviewing all information.") }}<br><br>{{ __("You will be asked to confirm before submission.") }}',
+                                title: '✅ {{ __('Create Delivery Note') }}',
+                                description: '{{ __('Save the delivery note after reviewing all information.') }}<br><br>{{ __('You will be asked to confirm before submission.') }}',
                                 side: 'top',
                                 align: 'end'
                             }
@@ -2000,16 +2441,16 @@
                         {
                             element: '#btnCreateAndPrint',
                             popover: {
-                                title: '🖨️ {{__("Create & Print")}}',
-                                description: '{{ __("Save the delivery note and immediately print the document in one step.") }}',
+                                title: '🖨️ {{ __('Create & Print') }}',
+                                description: '{{ __('Save the delivery note and immediately print the document in one step.') }}',
                                 side: 'top',
                                 align: 'end'
                             }
                         },
                         {
                             popover: {
-                                title: '🎉 {{__("You’re Ready!")}}',
-                                description: '{{ __("You now know how to create a delivery note.") }}<br><br><strong>{{__("Tip:")}}</strong> {{ __("Fill the form from top to bottom for the smoothest experience.") }}'
+                                title: '🎉 {{ __('You’re Ready!') }}',
+                                description: '{{ __('You now know how to create a delivery note.') }}<br><br><strong>{{ __('Tip:') }}</strong> {{ __('Fill the form from top to bottom for the smoothest experience.') }}'
                             }
                         }
                     ]
