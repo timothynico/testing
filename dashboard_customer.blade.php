@@ -432,10 +432,10 @@
 
                         // Label map for csource
                         $sourceLabel = [
-                            'on_hand'                    => ['label' => 'On-Hand',         'badge' => 'bg-success'],
-                            'in_transit_out'             => ['label' => 'Transit Out',      'badge' => 'bg-primary'],
-                            'in_transit_oi'              => ['label' => 'Transit OI',       'badge' => 'bg-warning text-dark'],
-                            'delivered_sender_liability' => ['label' => 'Sender Liability', 'badge' => 'bg-danger'],
+                            'on_hand'                    => ['label' => __('On-Hand'),          'badge' => 'bg-success'],
+                            'in_transit_out'             => ['label' => __('Transit Out'),      'badge' => 'bg-primary'],
+                            'in_transit_oi'              => ['label' => __('Transit OI'),       'badge' => 'bg-warning text-dark'],
+                            'delivered_sender_liability' => ['label' => __('Sender Liability'), 'badge' => 'bg-danger'],
                         ];
                     @endphp
 
@@ -454,7 +454,7 @@
                                 <span class="ms-auto badge
                                     {{ $wh['total'] >= 0 ? 'bg-success' : 'bg-danger' }}"
                                     style="font-size: 0.75rem;">
-                                    Total: {{ number_format($wh['total']) }} pallet
+                                    {{ __('Total: :count pallet', ['count' => number_format($wh['total'])]) }}
                                 </span>
                             </div>
 
@@ -497,7 +497,7 @@
                                                 <td class="py-2 px-3 text-muted" style="font-size: 0.78rem;">
                                                     @if ($item->csource === 'on_hand')
                                                         <span class="text-secondary">
-                                                            <i class="bi bi-box-seam me-1"></i>Stok tersedia di gudang
+                                                            <i class="bi bi-box-seam me-1"></i>{{ __('Stock available in warehouse') }}
                                                         </span>
 
                                                     @elseif ($item->csource === 'in_transit_out')
@@ -533,7 +533,7 @@
                                     <tfoot class="table-light">
                                         <tr>
                                             <td colspan="2" class="py-2 px-3 fw-bold text-end">
-                                                Subtotal {{ $wh['cnmwh'] }}
+                                                {{ __('Subtotal :warehouse', ['warehouse' => $wh['cnmwh']]) }}
                                             </td>
                                             <td class="py-2 px-3 text-end fw-bold
                                                 {{ $wh['total'] < 0 ? 'text-danger' : 'text-success' }}">
@@ -550,7 +550,8 @@
                     @endforeach
 
                     {{-- ── Grand Total ── --}}
-                    <div class="d-flex align-items-center justify-content-between px-3 py-2 bg-dark text-white">
+                    <div class="d-flex align-items-center justify-content-between px-3 py-2"
+                        style="background-color: #eaf4ff; color: #5b89c8;">
                         <span class="fw-bold" style="font-size: 0.875rem;">
                             <i class="bi bi-calculator me-1"></i>{{ __('Grand Total Liable Pallets') }}
                         </span>
